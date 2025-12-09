@@ -20,10 +20,10 @@ from jaxboost.structures import ObliviousTree
 
 @dataclass
 class TrainerConfig:
-    """Configuration for forest training.
+    """Configuration for gradient boosting training.
     
     Attributes:
-        n_trees: Number of trees in the forest.
+        n_trees: Number of trees in the ensemble.
         depth: Maximum depth of each tree.
         learning_rate: Base learning rate for optimizer.
         tree_weight: Weight for each tree's contribution.
@@ -138,7 +138,7 @@ class GBMTrainer:
         X_val: np.ndarray | None = None,
         y_val: np.ndarray | None = None,
     ) -> TrainedGBM:
-        """Train a forest on the given data.
+        """Train boosted trees on the given data.
         
         Args:
             X: Training features, shape (n_samples, n_features).
@@ -181,24 +181,24 @@ class GBMTrainer:
         
         # Initialize trees
         key = jax.random.PRNGKey(42)
-        forest_params = []
+        ensemble_params = []
         for _ in range(config.n_trees):
             key, subkey = jax.random.split(key)
             params = self.tree.init_params(
                 subkey, config.depth, n_features, self.split_fn
             )
-            forest_params.append(params)
+            ensemble_params.append(params)
         
         # Setup optimizer
         schedule = optax.cosine_decay_schedule(
             config.learning_rate, config.epochs, alpha=0.01
         )
         optimizer = optax.adam(schedule)
-        opt_state = optimizer.init(forest_params)
+        opt_state = optimizer.init(ensemble_params)
         
         # Training loop with early stopping
         best_val_loss = float('inf')
-        best_params = forest_params
+        best_params = ensemble_params
         no_improve = 0
         
         @jax.jit
@@ -214,19 +214,19 @@ class GBMTrainer:
             progress = epoch / config.epochs
             temperature = config.temp_start + progress * (config.temp_end - config.temp_start)
             
-            forest_params, opt_state, train_loss = train_step(
-                forest_params, opt_state, X_train, y_train, temperature
+            ensemble_params, opt_state, train_loss = train_step(
+                ensemble_params, opt_state, X_train, y_train, temperature
             )
             
             # Validation check
             if epoch % 10 == 0:
                 val_loss = self._loss_fn(
-                    forest_params, X_val, y_val, temperature, config
+                    ensemble_params, X_val, y_val, temperature, config
                 )
                 
                 if val_loss < best_val_loss:
                     best_val_loss = val_loss
-                    best_params = forest_params
+                    best_params = ensemble_params
                     no_improve = 0
                 else:
                     no_improve += 10
@@ -289,7 +289,7 @@ class GBMTrainer:
         temperature: float,
         config: TrainerConfig,
     ) -> Array:
-        """Compute loss for the forest."""
+        """Compute loss for the ensemble."""
         def routing_fn(score):
             return soft_routing(score, temperature)
         
