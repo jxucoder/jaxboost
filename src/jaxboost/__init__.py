@@ -3,8 +3,11 @@ jaxboost: Differentiable gradient boosting with JAX.
 
 Features:
 - Soft oblivious trees with sigmoid routing
+- Linear leaf trees for extrapolation beyond training data
 - Hyperplane splits for feature interactions
 - Sparse splits for interpretable feature selection
+- Attention-based splits for input-dependent routing
+- Information Bottleneck trees for principled regularization
 - Neural ODE boosting for continuous-time dynamics
 - GPU-efficient vectorized computation
 - End-to-end training via optax
@@ -39,7 +42,13 @@ from jaxboost.splits import (
     TopKHyperplaneSplit,
     TopKHyperplaneSplitParams,
 )
-from jaxboost.structures import ObliviousTree, ObliviousTreeParams
+from jaxboost.structures import (
+    ObliviousTree,
+    ObliviousTreeParams,
+    LinearLeafTree,
+    LinearLeafParams,
+    LinearLeafEnsemble,
+)
 
 __all__ = [
     "__version__",
@@ -64,6 +73,9 @@ __all__ = [
     # Structures
     "ObliviousTree",
     "ObliviousTreeParams",
+    "LinearLeafTree",
+    "LinearLeafParams",
+    "LinearLeafEnsemble",
     # Aggregation
     "boosting_aggregate",
     "ODEBoosting",
