@@ -74,6 +74,16 @@ from jaxboost.objective.multi_output import (
     laplace_nll,
 )
 
+# Multi-task objectives
+from jaxboost.objective.multi_task import (
+    MaskedMultiTaskObjective,
+    masked_multi_task_objective,
+    multi_task_regression,
+    multi_task_classification,
+    multi_task_huber,
+    multi_task_quantile,
+)
+
 __all__ = [
     # Core
     "AutoObjective",
@@ -109,5 +119,12 @@ __all__ = [
     # Multi-output
     "gaussian_nll",
     "laplace_nll",
+    # Multi-task
+    "MaskedMultiTaskObjective",
+    "masked_multi_task_objective",
+    "multi_task_regression",
+    "multi_task_classification",
+    "multi_task_huber",
+    "multi_task_quantile",
 ]
 
