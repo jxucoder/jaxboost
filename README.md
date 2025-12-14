@@ -1,4 +1,6 @@
-# jaxboost
+<p align="center">
+  <img src="assets/logo.png" alt="jaxboost" width="300">
+</p>
 
 Differentiable gradient boosting in JAX.
 
