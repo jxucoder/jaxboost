@@ -8,6 +8,7 @@
 - ✂️ **Hyperplane Splits** - Capture feature interactions beyond axis-aligned splits
 - 🚀 **GPU-Efficient** - Vectorized computation leveraging JAX's JIT compilation
 - 🔄 **End-to-End Training** - Gradient-based optimization via optax
+- 🎯 **Mixture of Experts** - MOE with soft tree experts or XGBoost/LightGBM/CatBoost
 
 ## Installation
 

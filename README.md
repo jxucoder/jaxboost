@@ -81,6 +81,31 @@ Control how each tree node splits the data:
 | `ObliviousTree` | Same split at each depth (like CatBoost), constant leaf values |
 | `LinearLeafTree` | Linear models at leaves, can extrapolate beyond training range |
 
+## Mixture of Experts
+
+Differentiable MOE with soft tree experts:
+
+```python
+from jaxboost.ensemble import MOEEnsemble
+
+moe = MOEEnsemble(num_experts=4, trees_per_expert=10, gating="tree")
+params = moe.fit(X_train, y_train)
+predictions = moe.predict(params, X_test)
+```
+
+EM-MOE with XGBoost/LightGBM/CatBoost experts:
+
+```python
+from jaxboost.ensemble import EMMOE, EMConfig, create_xgboost_expert
+
+experts = [create_xgboost_expert(n_estimators=100) for _ in range(4)]
+config = EMConfig(num_experts=4, em_iterations=10, expert_init_strategy="cluster")
+
+moe = EMMOE(experts, config=config)
+moe.fit(X_train, y_train)
+mean, std = moe.predict_with_uncertainty(X_test)
+```
+
 ## Low-Level API
 
 ```python
@@ -101,6 +126,8 @@ predictions = tree.forward(params, X, split_fn, lambda s: soft_routing(s, temper
 python examples/quickstart.py
 python examples/linear_leaf_extrapolation.py
 python examples/benchmark_splits.py
+python examples/moe_demo.py
+python examples/hybrid_moe_demo.py
 ```
 
 ## Requirements

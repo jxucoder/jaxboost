@@ -12,9 +12,13 @@ End-to-end trainable MOE with soft decision tree experts.
         - predict
         - get_expert_weights
 
+::: jaxboost.ensemble.TaskAwareMOEEnsemble
+
 ::: jaxboost.ensemble.MOEParams
 
 ## Gating Networks
+
+::: jaxboost.ensemble.GatingFn
 
 ::: jaxboost.ensemble.LinearGating
 
@@ -26,7 +30,7 @@ End-to-end trainable MOE with soft decision tree experts.
 
 External GBDT experts (XGBoost, LightGBM, CatBoost) trained via EM algorithm.
 
-::: jaxboost.ensemble.hybrid_moe.EMMOE
+::: jaxboost.ensemble.EMMOE
     options:
       members:
         - __init__
@@ -36,27 +40,29 @@ External GBDT experts (XGBoost, LightGBM, CatBoost) trained via EM algorithm.
         - get_expert_weights
         - get_responsibilities
 
-::: jaxboost.ensemble.hybrid_moe.EMConfig
+::: jaxboost.ensemble.EMConfig
 
 ### Variants
 
-::: jaxboost.ensemble.hybrid_moe.HardEMMOE
+::: jaxboost.ensemble.HardEMMOE
 
-::: jaxboost.ensemble.hybrid_moe.SparseEMMOE
+::: jaxboost.ensemble.SparseEMMOE
 
 ### Expert Factories
 
-::: jaxboost.ensemble.hybrid_moe.create_xgboost_expert
+::: jaxboost.ensemble.create_xgboost_expert
 
-::: jaxboost.ensemble.hybrid_moe.create_lightgbm_expert
+::: jaxboost.ensemble.create_lightgbm_expert
 
-::: jaxboost.ensemble.hybrid_moe.create_catboost_expert
+::: jaxboost.ensemble.create_catboost_expert
 
 ## Utilities
 
 ::: jaxboost.ensemble.sparse_top_k
 
 ::: jaxboost.ensemble.load_balance_loss
+
+::: jaxboost.ensemble.router_z_loss
 
 ## Examples
 
