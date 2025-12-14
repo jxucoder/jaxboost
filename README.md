@@ -2,158 +2,105 @@
 
 Differentiable gradient boosting in JAX.
 
-⚠️ **This is a research/learning project.** The main purpose is to explore novel ideas in gradient boosting using JAX's differentiable programming capabilities. Not intended to replace production libraries like XGBoost/LightGBM. Issues and ideas welcome!
+Two things:
 
-## Features
+1. **Soft trees** - End-to-end differentiable tree ensembles using sigmoid routing, trainable via gradient descent (unlike greedy XGBoost/LightGBM)
 
-### Core
-- **Soft Differentiable Trees**: Sigmoid routing enables end-to-end gradient descent training
-- **Oblivious Tree Structure**: Same split at each depth level, efficient for GPU
-- **GPU Acceleration**: Fully vectorized JAX operations
-- **End-to-End Training**: Train via optax optimizers, not greedy tree building
+2. **XGBoost/LightGBM objectives** - Define custom losses with `@auto_objective` decorator, get gradients/Hessians via JAX autodiff.
 
-### Split Functions
-| Split Type | Description | Use Case |
-|------------|-------------|----------|
-| `HyperplaneSplit` | Linear combinations of features | Default, captures interactions |
-| `AxisAlignedSplit` | Single feature splits | Interpretable, like traditional trees |
-| `SparseHyperplaneSplit` | L1-regularized hyperplanes | Feature selection |
-| `TopKHyperplaneSplit` | Hard top-k feature selection | Strict sparsity |
-| `AttentionSplit` | Input-dependent feature weighting | Complex interactions (large data) |
-| `InteractionDiscoverySplit` | Automatic pairwise interactions | Interaction detection |
-
-### Tree Structures
-| Structure | Description | Key Feature |
-|-----------|-------------|-------------|
-| `ObliviousTree` | Constant leaf values | Standard, fast |
-| `LinearLeafTree` | Linear models in leaves | **Extrapolation beyond training range** |
-
-### Advanced Modules
-| Module | Description |
-|--------|-------------|
-| `ODEBoosting` | Continuous-time boosting via Neural ODEs |
-| `IBTree` | Information Bottleneck regularization for principled complexity control |
-
-## Installation
+## Install
 
 ```bash
 pip install jaxboost
 ```
 
-Or from source:
+## XGBoost/LightGBM Objectives
 
-```bash
-git clone https://github.com/jxu/jaxboost.git
-cd jaxboost
-pip install -e .
+Use built-in objectives or define your own - gradients and Hessians computed automatically:
+
+```python
+import xgboost as xgb
+from jaxboost.objective import focal_loss, huber, quantile, auto_objective
+
+# Built-in objectives
+model = xgb.train(params, dtrain, obj=focal_loss.xgb_objective)
+model = xgb.train(params, dtrain, obj=huber.xgb_objective)
+model = xgb.train(params, dtrain, obj=quantile(0.9).xgb_objective)
+
+# Custom objective - just write the loss, autodiff handles the rest
+@auto_objective
+def my_loss(y_pred, y_true):
+    return (y_pred - y_true) ** 2
+
+model = xgb.train(params, dtrain, obj=my_loss.xgb_objective)
 ```
 
-## Quick Start
+Available: `focal_loss`, `huber`, `quantile`, `tweedie`, `softmax_cross_entropy`, `cox_partial_likelihood`, `multi_task_regression`, and more. See `jaxboost.objective`.
 
-### High-Level API
+## Soft Trees
+
+```python
+from jaxboost import GBMTrainer
+
+trainer = GBMTrainer(task="regression")  # or "classification"
+model = trainer.fit(X_train, y_train)
+predictions = model.predict(X_test)
+```
+
+With config:
 
 ```python
 from jaxboost import GBMTrainer, TrainerConfig
 
-# Regression
-trainer = GBMTrainer(task="regression")
-model = trainer.fit(X_train, y_train)
-predictions = model.predict(X_test)
-
-# Classification
-trainer = GBMTrainer(task="classification")
-model = trainer.fit(X_train, y_train)
-probabilities = model.predict(X_test)
-classes = model.predict_class(X_test)
-```
-
-### Configuration
-
-```python
 config = TrainerConfig(
-    n_trees=20,          # Number of trees
-    depth=4,             # Tree depth
-    learning_rate=0.01,  # Optimizer learning rate
-    epochs=500,          # Training epochs
-    patience=50,         # Early stopping patience
-    verbose=True,
+    n_trees=20,
+    depth=4,
+    learning_rate=0.01,
+    epochs=500,
+    patience=50,
 )
 trainer = GBMTrainer(task="regression", config=config)
 ```
 
-### Low-Level API
+## Split Functions
+
+Control how each tree node splits the data:
+
+| Split | What it does |
+|-------|--------------|
+| `HyperplaneSplit` | Linear combination of features (default) |
+| `AxisAlignedSplit` | Single feature threshold, like traditional trees |
+| `SparseHyperplaneSplit` | Learned feature selection via soft gates |
+| `TopKHyperplaneSplit` | Hard top-k feature selection |
+| `AttentionSplit` | Input-dependent feature weighting |
+
+## Tree Structures
+
+| Structure | What it does |
+|-----------|--------------|
+| `ObliviousTree` | Same split at each depth (like CatBoost), constant leaf values |
+| `LinearLeafTree` | Linear models at leaves, can extrapolate beyond training range |
+
+## Low-Level API
 
 ```python
 import jax
-from jaxboost import (
-    ObliviousTree, 
-    HyperplaneSplit, 
-    soft_routing,
-    boosting_aggregate,
-)
+from jaxboost import ObliviousTree, HyperplaneSplit, soft_routing
 
-# Initialize components
 key = jax.random.PRNGKey(0)
 tree = ObliviousTree()
 split_fn = HyperplaneSplit()
-routing_fn = lambda s: soft_routing(s, temperature=1.0)
 
-# Initialize and use tree
 params = tree.init_params(key, depth=4, num_features=10, split_fn=split_fn)
-predictions = tree.forward(params, X, split_fn, routing_fn)
-```
-
-### Linear Leaf Trees (Extrapolation)
-
-```python
-from jaxboost.structures import LinearLeafTree
-
-# Trees that can extrapolate beyond training data
-tree = LinearLeafTree(l2_leaf_reg=0.01)
-params = tree.init_params(key, depth=4, num_features=10, split_fn=split_fn)
-
-# Works for x outside training range!
-predictions = tree.forward(params, x_extrapolate, split_fn, routing_fn)
-```
-
-### Information Bottleneck Trees
-
-```python
-from jaxboost.ib import IBTree
-
-# Principled regularization via Information Bottleneck
-tree = IBTree(depth=4, beta=0.1)  # beta controls complexity
-params = tree.init_params(key, num_features=10)
-
-# Prediction with uncertainty
-mean, variance = tree.predict_with_uncertainty(params, X)
-```
-
-### ODE Boosting
-
-```python
-from jaxboost.aggregation import ODEBoosting
-
-# Continuous-time boosting (requires: pip install diffrax)
-ode_boost = ODEBoosting(depth=4, t_span=(0.0, 1.0))
-params = ode_boost.init_params(key, num_features=10)
-predictions = ode_boost.forward(params, X)
+predictions = tree.forward(params, X, split_fn, lambda s: soft_routing(s, temperature=1.0))
 ```
 
 ## Examples
 
 ```bash
-# Quick start
 python examples/quickstart.py
-
-# Extrapolation demo
 python examples/linear_leaf_extrapolation.py
-
-# Benchmark different split functions
 python examples/benchmark_splits.py
-
-# Differentiable tree demo
-python examples/differentiable_tree_demo.py
 ```
 
 ## Requirements
@@ -161,21 +108,6 @@ python examples/differentiable_tree_demo.py
 - Python >= 3.10
 - JAX >= 0.4.20
 - optax >= 0.1.7
-- diffrax (optional, for ODE boosting)
-
-## Project Structure
-
-```
-src/jaxboost/
-├── training/       # High-level GBMTrainer API
-├── structures/     # Tree structures (ObliviousTree, LinearLeafTree)
-├── splits/         # Split functions (Hyperplane, Sparse, Attention, etc.)
-├── routing/        # Soft routing functions
-├── aggregation/    # Boosting aggregation, ODE boosting
-├── losses/         # Loss functions
-├── ib/             # Information Bottleneck trees
-└── core/           # Protocols and base types
-```
 
 ## License
 

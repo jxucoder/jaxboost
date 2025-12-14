@@ -48,6 +48,7 @@ nav:
   - API Reference:
       - Overview: api/index.md
       - Training: api/training.md
+      - Ensemble & MOE: api/ensemble.md
       - Splits: api/splits.md
       - Structures: api/structures.md
       - Routing: api/routing.md

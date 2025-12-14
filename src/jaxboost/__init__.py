@@ -12,6 +12,7 @@ Features:
 - Sparse splits for interpretable feature selection
 - Attention-based splits for input-dependent routing
 - Information Bottleneck trees for principled regularization
+- Mixture of Experts (MOE) with GBDT experts
 - Neural ODE boosting for continuous-time dynamics
 - GPU-efficient vectorized computation
 - End-to-end training via optax
@@ -22,6 +23,12 @@ Quick Start (Soft Trees):
     >>> trainer = GBMTrainer(task="regression")
     >>> model = trainer.fit(X_train, y_train)
     >>> predictions = model.predict(X_test)
+
+Quick Start (MOE Ensemble):
+    >>> from jaxboost.ensemble import MOEEnsemble
+    >>> moe = MOEEnsemble(num_experts=4, gating="tree")
+    >>> params = moe.fit(X_train, y_train)
+    >>> predictions = moe.predict(params, X_test)
 
 Quick Start (XGBoost Objectives):
     >>> from jaxboost.objective import focal_loss, auto_objective
@@ -73,6 +80,15 @@ from jaxboost.structures import (
     LinearLeafEnsemble,
 )
 
+# Ensemble methods (MOE)
+from jaxboost.ensemble import (
+    MOEEnsemble,
+    MOEParams,
+    LinearGating,
+    MLPGating,
+    TreeGating,
+)
+
 __all__ = [
     "__version__",
     # High-level API
@@ -112,4 +128,10 @@ __all__ = [
     # Losses (for soft trees)
     "mse_loss",
     "sigmoid_binary_cross_entropy",
+    # Ensemble (MOE)
+    "MOEEnsemble",
+    "MOEParams",
+    "LinearGating",
+    "MLPGating",
+    "TreeGating",
 ]
