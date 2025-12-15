@@ -588,6 +588,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ensemble-mixture-of-experts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ensemble &amp; Mixture of Experts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#low-level-components" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -638,6 +649,34 @@
     
   
     Training
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="ensemble/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ensemble & MOE
   
 
     
@@ -848,6 +887,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#ensemble-mixture-of-experts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ensemble &amp; Mixture of Experts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#low-level-components" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -903,6 +953,12 @@
 <li><a href="training/#jaxboost.training.GBMTrainer"><code>GBMTrainer</code></a> - Main training interface</li>
 <li><a href="training/#jaxboost.training.TrainerConfig"><code>TrainerConfig</code></a> - Configuration options</li>
 </ul>
+<h3 id="ensemble-mixture-of-experts">Ensemble &amp; Mixture of Experts<a class="headerlink" href="#ensemble-mixture-of-experts" title="Permanent link">&para;</a></h3>
+<ul>
+<li><a href="ensemble/#jaxboost.ensemble.MOEEnsemble"><code>MOEEnsemble</code></a> - Differentiable MOE with soft tree experts</li>
+<li><a href="ensemble/#jaxboost.ensemble.hybrid_moe.EMMOE"><code>EMMOE</code></a> - EM-trained MOE with XGBoost/LightGBM/CatBoost experts</li>
+<li><a href="ensemble/">Gating Networks</a> - Linear, MLP, and Tree gating</li>
+</ul>
 <h3 id="low-level-components">Low-Level Components<a class="headerlink" href="#low-level-components" title="Permanent link">&para;</a></h3>
 <ul>
 <li><a href="splits/">Splits</a> - Split functions (axis-aligned, hyperplane)</li>
@@ -914,11 +970,12 @@
 <h2 id="module-structure">Module Structure<a class="headerlink" href="#module-structure" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>jaxboost/
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── training/      # High-level training API
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── splits/        # Split mechanisms
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── structures/    # Tree structures
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── routing/       # Soft routing
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── aggregation/   # Ensemble aggregation
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>└── losses/        # Loss functions
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── ensemble/      # MOE architectures (differentiable &amp; hybrid)
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── splits/        # Split mechanisms
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── structures/    # Tree structures
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── routing/       # Soft routing
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── aggregation/   # Ensemble aggregation
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>└── losses/        # Loss functions
 </code></pre></div>
 
 
