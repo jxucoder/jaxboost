@@ -13,15 +13,19 @@ Welcome to the JAXBoost API documentation.
     import xgboost as xgb
     from jaxboost import auto_objective, focal_loss
 
+    # Load your data
+    dtrain = xgb.DMatrix(X_train, label=y_train)
+    params = {"max_depth": 4, "eta": 0.1}
+
     # Use built-in objective
-    model = xgb.train(params, dtrain, obj=focal_loss.xgb_objective)
+    model = xgb.train(params, dtrain, num_boost_round=100, obj=focal_loss.xgb_objective)
 
     # Create custom objective
     @auto_objective
     def my_loss(y_pred, y_true):
         return (y_pred - y_true) ** 2
 
-    model = xgb.train(params, dtrain, obj=my_loss.xgb_objective)
+    model = xgb.train(params, dtrain, num_boost_round=100, obj=my_loss.xgb_objective)
     ```
 
 === "LightGBM"
@@ -31,7 +35,8 @@ Welcome to the JAXBoost API documentation.
     from jaxboost import huber
 
     train_data = lgb.Dataset(X_train, label=y_train)
-    model = lgb.train(params, train_data, fobj=huber.lgb_objective)
+    params = {"max_depth": 4, "learning_rate": 0.1}
+    model = lgb.train(params, train_data, num_boost_round=100, fobj=huber.lgb_objective)
     ```
 
 === "CatBoost"
@@ -40,7 +45,11 @@ Welcome to the JAXBoost API documentation.
     from catboost import CatBoostRegressor
     from jaxboost import huber
 
-    model = CatBoostRegressor(loss_function=huber.catboost_objective)
+    model = CatBoostRegressor(
+        loss_function=huber.catboost_objective,
+        iterations=100,
+        depth=4
+    )
     model.fit(X_train, y_train)
     ```
 

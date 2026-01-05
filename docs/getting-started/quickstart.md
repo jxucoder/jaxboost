@@ -83,7 +83,16 @@ def asymmetric_mse(y_pred, y_true, alpha=0.7):
     return jnp.where(error > 0, alpha * error**2, (1 - alpha) * error**2)
 
 # Use with XGBoost
+import xgboost as xgb
+dtrain = xgb.DMatrix(X_train, label=y_train)
+params = {"max_depth": 4, "eta": 0.1}
 model = xgb.train(params, dtrain, num_boost_round=100, obj=asymmetric_mse.xgb_objective)
+
+# Use with LightGBM
+import lightgbm as lgb
+train_data = lgb.Dataset(X_train, label=y_train)
+params = {"max_depth": 4, "learning_rate": 0.1}
+model = lgb.train(params, train_data, num_boost_round=100, fobj=asymmetric_mse.lgb_objective)
 ```
 
 !!! info "How it works"
