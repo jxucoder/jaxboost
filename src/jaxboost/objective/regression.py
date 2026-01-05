@@ -128,10 +128,10 @@ def quantile(
     Args:
         y_pred: Predicted value
         y_true: True value
-        q: Target quantile in (0, 1). Default: 0.5 (median)
-           - q=0.1: 10th percentile (conservative)
-           - q=0.5: median
-           - q=0.9: 90th percentile (aggressive)
+        q: Target quantile in (0, 1). Default: 0.5 (median).
+            q=0.1 for 10th percentile (conservative),
+            q=0.5 for median,
+            q=0.9 for 90th percentile (aggressive).
         alpha: Smoothing parameter for regularization. Default: 0.01
 
     Example:
@@ -166,7 +166,7 @@ def tweedie(
 
     Common in insurance claims, rainfall prediction, and other scenarios
     with many zeros and positive continuous values.
-    
+
     Valid for 1 < p < 2.
     For p=1 (Poisson), use `poisson` objective.
     For p=2 (Gamma), use `gamma` objective.
@@ -174,8 +174,8 @@ def tweedie(
     Args:
         y_pred: Raw prediction (will be exponentiated to ensure positivity)
         y_true: True value (must be non-negative)
-        p: Tweedie power parameter. Default: 1.5
-           - 1<p<2: Compound Poisson-Gamma (most common for insurance)
+        p: Tweedie power parameter. Default: 1.5.
+            For 1<p<2: Compound Poisson-Gamma (most common for insurance).
 
     Example:
         >>> model = xgb.train(params, dtrain, obj=tweedie.xgb_objective)

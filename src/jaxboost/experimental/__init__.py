@@ -35,19 +35,6 @@ _warnings.warn(
 # =============================================================================
 # Soft Decision Trees (High-level API)
 # =============================================================================
-from jaxboost.training import GBMTrainer, TrainerConfig
-
-# =============================================================================
-# Tree Structures
-# =============================================================================
-from jaxboost.structures import (
-    ObliviousTree,
-    ObliviousTreeParams,
-    LinearLeafTree,
-    LinearLeafParams,
-    LinearLeafEnsemble,
-)
-
 # =============================================================================
 # Split Functions
 # =============================================================================
@@ -55,19 +42,31 @@ from jaxboost.splits import (
     # Basic splits
     AxisAlignedSplit,
     AxisAlignedSplitParams,
+    FactorizedInteractionParams,
+    FactorizedInteractionSplit,
     HyperplaneSplit,
     HyperplaneSplitParams,
+    InteractionDiscoveryParams,
+    # Advanced splits
+    InteractionDiscoverySplit,
     # Sparse/regularized splits
     SparseHyperplaneSplit,
     SparseHyperplaneSplitParams,
     TopKHyperplaneSplit,
     TopKHyperplaneSplitParams,
-    # Advanced splits
-    InteractionDiscoverySplit,
-    InteractionDiscoveryParams,
-    FactorizedInteractionSplit,
-    FactorizedInteractionParams,
 )
+
+# =============================================================================
+# Tree Structures
+# =============================================================================
+from jaxboost.structures import (
+    LinearLeafEnsemble,
+    LinearLeafParams,
+    LinearLeafTree,
+    ObliviousTree,
+    ObliviousTreeParams,
+)
+from jaxboost.training import GBMTrainer, TrainerConfig
 
 # Attention-based splits (if available)
 try:
@@ -78,41 +77,40 @@ except ImportError:
 # =============================================================================
 # Routing Functions
 # =============================================================================
-from jaxboost.routing import soft_routing
-
 # =============================================================================
 # Aggregation Methods
 # =============================================================================
 from jaxboost.aggregation import (
-    boosting_aggregate,
     EulerBoosting,
     ODEBoosting,
+    boosting_aggregate,
+)
+
+# =============================================================================
+# Mixture of Experts
+# =============================================================================
+from jaxboost.ensemble import (
+    LinearGating,
+    MLPGating,
+    MOEEnsemble,
+    MOEParams,
+    TreeGating,
 )
 
 # =============================================================================
 # Losses (for soft tree training)
 # =============================================================================
 from jaxboost.losses import mse_loss, sigmoid_binary_cross_entropy
-
-# =============================================================================
-# Mixture of Experts
-# =============================================================================
-from jaxboost.ensemble import (
-    MOEEnsemble,
-    MOEParams,
-    LinearGating,
-    MLPGating,
-    TreeGating,
-)
+from jaxboost.routing import soft_routing
 
 # Hybrid MOE (XGBoost/LightGBM experts)
 try:
     from jaxboost.ensemble.hybrid_moe import (
         EMMOE,
         EMConfig,
-        create_xgboost_expert,
-        create_lightgbm_expert,
         create_catboost_expert,
+        create_lightgbm_expert,
+        create_xgboost_expert,
     )
 except ImportError:
     pass
@@ -120,26 +118,26 @@ except ImportError:
 # =============================================================================
 # Information Bottleneck Trees
 # =============================================================================
-from jaxboost.ib import IBTree, IBTreeParams, IBTreeEnsemble
+from jaxboost.ib import IBTree, IBTreeEnsemble, IBTreeParams
 
 # =============================================================================
 # Empirical Prior-Fitted Networks (PFN)
 # =============================================================================
 from jaxboost.pfn import (
+    # DataPFN
+    DataPFN,
+    DataPFNConfig,
+    # Empirical prior
+    EmpiricalPrior,
+    # Prior generator
+    PriorGenerator,
     # Structure discovery
     StructureStats,
     discover_structure,
     discover_structure_fast,
-    # Empirical prior
-    EmpiricalPrior,
+    generate_dataset_from_prior,
     learn_prior_from_datasets,
     learn_prior_from_single_dataset,
-    # Prior generator
-    PriorGenerator,
-    generate_dataset_from_prior,
-    # DataPFN
-    DataPFN,
-    DataPFNConfig,
     train_data_pfn,
 )
 
@@ -198,4 +196,3 @@ __all__ = [
     "DataPFNConfig",
     "train_data_pfn",
 ]
-

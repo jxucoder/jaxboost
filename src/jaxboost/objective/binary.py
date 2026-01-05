@@ -128,7 +128,3 @@ def hinge_loss(
     # hinge(z) = max(0, 1 - z) ≈ softplus(1 - z)
     z = y_signed * y_pred
     return jax.nn.softplus(margin - z)
-
-
-
-

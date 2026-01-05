@@ -194,7 +194,7 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Cursor
+# Cursor (ignored by default - use 'git add -f' to override)
 .cursor/
 .cursorignore
 .cursorindexingignore

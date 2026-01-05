@@ -7,7 +7,8 @@ with XGBoost/LightGBM where predictions are logits of shape (n_samples, n_classe
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -64,9 +65,7 @@ class MultiClassObjective:
         self._grad_fn = jax.grad(self._loss_wrapper, argnums=0)
 
         # Hessian diagonal
-        def diag_hess(
-            logits: jax.Array, label: jax.Array, kwargs: dict[str, Any]
-        ) -> jax.Array:
+        def diag_hess(logits: jax.Array, label: jax.Array, kwargs: dict[str, Any]) -> jax.Array:
             """Compute diagonal of Hessian."""
 
             def loss_i(i: int) -> Callable[[jax.Array], jax.Array]:
@@ -116,10 +115,7 @@ class MultiClassObjective:
 
         # Reshape predictions if needed
         y_pred_arr = np.asarray(y_pred)
-        if y_pred_arr.ndim == 1:
-            y_pred_2d = y_pred_arr.reshape(-1, self.n_classes)
-        else:
-            y_pred_2d = y_pred_arr
+        y_pred_2d = y_pred_arr.reshape(-1, self.n_classes) if y_pred_arr.ndim == 1 else y_pred_arr
 
         y_pred_jax = jnp.asarray(y_pred_2d, dtype=jnp.float32)
         y_true_jax = jnp.asarray(y_true, dtype=jnp.int32)
@@ -152,10 +148,7 @@ class MultiClassObjective:
         merged_kwargs = {**self._default_kwargs, **kwargs}
 
         y_pred_arr = np.asarray(y_pred)
-        if y_pred_arr.ndim == 1:
-            y_pred_2d = y_pred_arr.reshape(-1, self.n_classes)
-        else:
-            y_pred_2d = y_pred_arr
+        y_pred_2d = y_pred_arr.reshape(-1, self.n_classes) if y_pred_arr.ndim == 1 else y_pred_arr
         y_pred_jax = jnp.asarray(y_pred_2d, dtype=jnp.float32)
         y_true_jax = jnp.asarray(y_true, dtype=jnp.int32)
 
@@ -218,9 +211,7 @@ class MultiClassObjective:
         ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
             y_true = dtrain.get_label()
             sample_weight = dtrain.get_weight()
-            return self.grad_hess(
-                y_pred, y_true, sample_weight=sample_weight, **kwargs
-            )
+            return self.grad_hess(y_pred, y_true, sample_weight=sample_weight, **kwargs)
 
         objective.__name__ = f"{self._name}_xgb_objective"
         return objective
@@ -232,9 +223,7 @@ class MultiClassObjective:
 
     def with_params(self, **kwargs: Any) -> MultiClassObjective:
         """Create a new instance with default parameters set."""
-        new_instance = MultiClassObjective(
-            loss_fn=self.loss_fn, n_classes=self.n_classes
-        )
+        new_instance = MultiClassObjective(loss_fn=self.loss_fn, n_classes=self.n_classes)
         new_instance._default_kwargs = {**self._default_kwargs, **kwargs}
         return new_instance
 
@@ -424,7 +413,3 @@ def class_balanced(
         return -weight * log_probs[label]
 
     return cb_ce
-
-
-
-

@@ -23,14 +23,6 @@ from jaxboost.objective.auto import (
     AutoObjective,
     auto_objective,
 )
-from jaxboost.objective.multiclass import (
-    MultiClassObjective,
-    multiclass_objective,
-)
-from jaxboost.objective.multi_output import (
-    MultiOutputObjective,
-    multi_output_objective,
-)
 
 # Binary classification objectives
 from jaxboost.objective.binary import (
@@ -38,6 +30,34 @@ from jaxboost.objective.binary import (
     focal_loss,
     hinge_loss,
     weighted_binary_crossentropy,
+)
+
+# Multi-output objectives
+from jaxboost.objective.multi_output import (
+    MultiOutputObjective,
+    gaussian_nll,
+    laplace_nll,
+    multi_output_objective,
+)
+
+# Multi-task objectives
+from jaxboost.objective.multi_task import (
+    MaskedMultiTaskObjective,
+    masked_multi_task_objective,
+    multi_task_classification,
+    multi_task_huber,
+    multi_task_quantile,
+    multi_task_regression,
+)
+
+# Multi-class classification objectives
+from jaxboost.objective.multiclass import (
+    MultiClassObjective,
+    class_balanced,
+    focal_multiclass,
+    label_smoothing,
+    multiclass_objective,
+    softmax_cross_entropy,
 )
 
 # Regression objectives
@@ -54,34 +74,10 @@ from jaxboost.objective.regression import (
     tweedie,
 )
 
-# Multi-class classification objectives
-from jaxboost.objective.multiclass import (
-    class_balanced,
-    focal_multiclass,
-    label_smoothing,
-    softmax_cross_entropy,
-)
-
 # Survival analysis objectives
 from jaxboost.objective.survival import (
     aft,
     weibull_aft,
-)
-
-# Multi-output objectives
-from jaxboost.objective.multi_output import (
-    gaussian_nll,
-    laplace_nll,
-)
-
-# Multi-task objectives
-from jaxboost.objective.multi_task import (
-    MaskedMultiTaskObjective,
-    masked_multi_task_objective,
-    multi_task_classification,
-    multi_task_huber,
-    multi_task_quantile,
-    multi_task_regression,
 )
 
 __all__ = [

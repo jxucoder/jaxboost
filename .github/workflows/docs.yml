@@ -20,18 +20,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
         with:
-          python-version: "3.11"
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Create virtual environment
+        run: uv venv
 
       - name: Install dependencies
         run: |
-          pip install mkdocs mkdocs-material mkdocstrings[python]
-          pip install -e .
+          uv pip install mkdocs mkdocs-material "mkdocstrings[python]"
+          # Install jaxboost without jax-metal (macOS only)
+          uv pip install -e . --no-deps
+          uv pip install "jax>=0.4.20" "jaxlib>=0.4.20" "optax>=0.1.7" "chex>=0.1.8"
 
       - name: Build docs
-        run: mkdocs build
+        run: .venv/bin/mkdocs build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -48,4 +56,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

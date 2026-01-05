@@ -85,7 +85,6 @@ def aft(
     return loss
 
 
-
 @AutoObjective
 def weibull_aft(
     y_pred: jax.Array,
@@ -128,9 +127,9 @@ def weibull_aft(
 
     # Uncensored: -log(pdf)
     z_lower = (t_lower / lambda_) ** k
-    log_pdf = jnp.log(k) - jnp.log(lambda_) + (k - 1) * (
-        jnp.log(t_lower) - jnp.log(lambda_)
-    ) - z_lower
+    log_pdf = (
+        jnp.log(k) - jnp.log(lambda_) + (k - 1) * (jnp.log(t_lower) - jnp.log(lambda_)) - z_lower
+    )
     uncensored_loss = -log_pdf
 
     # Right-censored: -log(survival) = (t/lambda)^k
@@ -152,7 +151,3 @@ def weibull_aft(
     )
 
     return loss
-
-
-
-
