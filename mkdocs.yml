@@ -1,30 +1,37 @@
 site_name: JAXBoost
-site_description: Next-generation differentiable gradient boosting with JAX
+site_description: JAX autodiff for XGBoost/LightGBM objectives
 site_url: https://github.com/jxu/jaxboost
 repo_url: https://github.com/jxu/jaxboost
 repo_name: jxu/jaxboost
 
 theme:
   name: material
+  logo: assets/logo.png
+  favicon: assets/logo.png
   palette:
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: deep purple
+      accent: amber
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: deep purple
+      accent: amber
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
   features:
     - navigation.tabs
     - navigation.sections
-    - navigation.expand
+    - navigation.top
+    - navigation.footer
     - search.highlight
+    - search.suggest
     - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
 
 plugins:
   - search
@@ -40,6 +47,7 @@ plugins:
             members_order: source
             separate_signature: true
             show_signature_annotations: true
+            merge_init_into_class: true
 
 nav:
   - Home: index.md
@@ -47,21 +55,33 @@ nav:
       - Quick Start: getting-started/quickstart.md
   - API Reference:
       - Overview: api/index.md
-      - Training: api/training.md
-      - Ensemble & MOE: api/ensemble.md
-      - Splits: api/splits.md
-      - Structures: api/structures.md
-      - Routing: api/routing.md
-      - Aggregation: api/aggregation.md
-      - Losses: api/losses.md
+      - Objectives: api/losses.md
+  - Research: research.md
 
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.superfences
   - pymdownx.inlinehilite
+  - pymdownx.snippets
   - admonition
   - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - attr_list
+  - md_in_html
   - toc:
       permalink: true
 
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/jxu/jaxboost
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

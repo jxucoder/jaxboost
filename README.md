@@ -2,6 +2,11 @@
   <img src="assets/logo.png" alt="jaxboost" width="300">
 </p>
 
+[![Tests](https://github.com/jxu/jaxboost/actions/workflows/tests.yml/badge.svg)](https://github.com/jxu/jaxboost/actions/workflows/tests.yml)
+[![Lint](https://github.com/jxu/jaxboost/actions/workflows/lint.yml/badge.svg)](https://github.com/jxu/jaxboost/actions/workflows/lint.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+
 **JAX autodiff for XGBoost/LightGBM objectives.**
 
 Write a loss function, get gradients and Hessians automatically. No manual derivation needed.
@@ -63,8 +68,7 @@ Works with **XGBoost**, **LightGBM**, and **CatBoost**.
 ### Survival Analysis
 | Objective | Description |
 |-----------|-------------|
-| `cox_partial_likelihood` | Cox proportional hazards |
-| `aft` | Accelerated failure time |
+| `aft` | Accelerated failure time (log-normal) |
 | `weibull_aft` | Weibull AFT model |
 
 ### Multi-task Learning
@@ -138,4 +142,4 @@ model = xgb.train(
 
 ## License
 
-MIT
+Apache 2.0
