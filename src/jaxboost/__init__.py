@@ -2,7 +2,7 @@
 jaxboost: JAX autodiff for XGBoost/LightGBM objectives.
 
 Write a loss function, get gradients and Hessians automatically via JAX.
-Works with XGBoost, LightGBM, and CatBoost.
+Works with XGBoost and LightGBM.
 
 Quick Start:
     >>> import xgboost as xgb

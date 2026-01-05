@@ -11,6 +11,8 @@
 
 Write a loss function, get gradients and Hessians automatically. No manual derivation needed.
 
+Works with **XGBoost** and **LightGBM**.
+
 ## Install
 
 ```bash
@@ -56,19 +58,6 @@ params = {"max_depth": 4, "learning_rate": 0.1}
 model = lgb.train(params, train_data, num_boost_round=100, fobj=huber.lgb_objective)
 ```
 
-### CatBoost
-
-```python
-from catboost import CatBoostRegressor
-from jaxboost import huber
-
-model = CatBoostRegressor(
-    loss_function=huber.catboost_objective,
-    iterations=100,
-    depth=4
-)
-model.fit(X_train, y_train)
-```
 
 ## Available Objectives
 

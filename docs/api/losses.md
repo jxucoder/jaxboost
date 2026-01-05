@@ -1,6 +1,6 @@
 # Objectives
 
-Automatic objective functions for XGBoost, LightGBM, and CatBoost using JAX autodiff.
+Automatic objective functions for XGBoost and LightGBM using JAX autodiff.
 
 !!! tip "How it works"
     JAXBoost uses JAX automatic differentiation to compute gradients and Hessians from your loss function. You write the loss, JAX computes the derivatives—no manual math required.

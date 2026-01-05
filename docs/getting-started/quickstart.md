@@ -19,7 +19,7 @@ pip install jaxboost
 
 ## Basic Usage
 
-JAXBoost lets you write custom loss functions and automatically generates the gradients and Hessians needed by XGBoost, LightGBM, or CatBoost.
+JAXBoost lets you write custom loss functions and automatically generates the gradients and Hessians needed by XGBoost and LightGBM.
 
 ### Using Built-in Objectives
 
@@ -56,15 +56,6 @@ JAXBoost lets you write custom loss functions and automatically generates the gr
     model = lgb.train(params, train_data, num_boost_round=100, fobj=huber.lgb_objective)
     ```
 
-=== "CatBoost"
-
-    ```python
-    from catboost import CatBoostRegressor
-    from jaxboost import huber
-
-    model = CatBoostRegressor(loss_function=huber.catboost_objective)
-    model.fit(X_train, y_train)
-    ```
 
 ---
 

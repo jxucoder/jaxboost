@@ -15,7 +15,7 @@
 - **Automatic Gradients** — JAX computes first derivatives for any loss function
 - **Automatic Hessians** — Second derivatives computed automatically via autodiff
 - **Built-in Objectives** — Focal loss, Huber, quantile, survival, and 20+ more
-- **Works Everywhere** — XGBoost, LightGBM, and CatBoost compatible
+- **Works Everywhere** — XGBoost and LightGBM compatible
 
 ---
 
