@@ -28,6 +28,9 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
+      - name: Create virtual environment
+        run: uv venv
+
       - name: Install dependencies
         run: |
           uv pip install mkdocs mkdocs-material "mkdocstrings[python]"
@@ -36,7 +39,7 @@ jobs:
           uv pip install "jax>=0.4.20" "jaxlib>=0.4.20" "optax>=0.1.7" "chex>=0.1.8"
 
       - name: Build docs
-        run: uv run mkdocs build
+        run: .venv/bin/mkdocs build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
