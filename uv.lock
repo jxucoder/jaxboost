@@ -669,7 +669,6 @@ wheels = [
 
 [[package]]
 name = "jaxboost"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "chex", version = "0.1.90", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -734,7 +733,7 @@ requires-dist = [
     { name = "tabpfn", specifier = ">=6.0.6" },
     { name = "xgboost", marker = "extra == 'benchmark'", specifier = ">=2.0.0" },
 ]
-provides-extras = ["dev", "docs", "benchmark", "ode", "polars"]
+provides-extras = ["benchmark", "dev", "docs", "ode", "polars"]
 
 [package.metadata.requires-dev]
 dev = [
