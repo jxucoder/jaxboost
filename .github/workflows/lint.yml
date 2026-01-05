@@ -22,7 +22,7 @@ jobs:
         run: uv python install 3.11
 
       - name: Install ruff
-        run: uv pip install ruff
+        run: uv pip install --system ruff
 
       - name: Check formatting
         run: ruff format --check src/ tests/
