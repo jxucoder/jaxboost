@@ -1,6 +1,6 @@
 [project]
 name = "jaxboost"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Next-generation differentiable gradient boosting with JAX"
 readme = "README.md"
 license = "Apache-2.0"
@@ -61,13 +61,17 @@ polars = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/jxu/jaxboost"
-Repository = "https://github.com/jxu/jaxboost"
-Issues = "https://github.com/jxu/jaxboost/issues"
+Homepage = "https://github.com/jxucoder/jaxboost"
+Documentation = "https://jxucoder.github.io/jaxboost/"
+Repository = "https://github.com/jxucoder/jaxboost"
+Issues = "https://github.com/jxucoder/jaxboost/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/jaxboost/_version.py"
 
 [tool.ruff]
 line-length = 100
