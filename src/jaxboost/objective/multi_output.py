@@ -7,7 +7,8 @@ such as multi-target regression or parametric models.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -76,9 +77,7 @@ class MultiOutputObjective:
             def grad_i(i: int) -> jax.Array:
                 def loss_i(yi: jax.Array) -> jax.Array:
                     y_pred_new = y_pred.at[i].set(yi)
-                    return self._loss_wrapper(
-                        y_pred_new, y_true, scalar_kwargs, array_kwargs
-                    )
+                    return self._loss_wrapper(y_pred_new, y_true, scalar_kwargs, array_kwargs)
 
                 return jax.grad(jax.grad(loss_i))(y_pred[i])
 
@@ -158,13 +157,11 @@ class MultiOutputObjective:
         if array_kwargs:
             grads = jax.vmap(
                 lambda yp, yt, *arr_vals: grad_single(
-                    yp, yt, dict(zip(array_kwargs.keys(), arr_vals))
+                    yp, yt, dict(zip(array_kwargs.keys(), arr_vals, strict=False))
                 )
             )(y_pred_jax, y_true_jax, *array_kwargs.values())
         else:
-            grads = jax.vmap(lambda yp, yt: grad_single(yp, yt, {}))(
-                y_pred_jax, y_true_jax
-            )
+            grads = jax.vmap(lambda yp, yt: grad_single(yp, yt, {}))(y_pred_jax, y_true_jax)
 
         # Flatten for XGBoost
         return np.asarray(grads, dtype=np.float64).flatten()
@@ -204,13 +201,11 @@ class MultiOutputObjective:
         if array_kwargs:
             hess = jax.vmap(
                 lambda yp, yt, *arr_vals: hess_single(
-                    yp, yt, dict(zip(array_kwargs.keys(), arr_vals))
+                    yp, yt, dict(zip(array_kwargs.keys(), arr_vals, strict=False))
                 )
             )(y_pred_jax, y_true_jax, *array_kwargs.values())
         else:
-            hess = jax.vmap(lambda yp, yt: hess_single(yp, yt, {}))(
-                y_pred_jax, y_true_jax
-            )
+            hess = jax.vmap(lambda yp, yt: hess_single(yp, yt, {}))(y_pred_jax, y_true_jax)
 
         return np.asarray(hess, dtype=np.float64).flatten()
 
@@ -268,9 +263,7 @@ class MultiOutputObjective:
         ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
             y_true = dtrain.get_label()
             sample_weight = dtrain.get_weight()
-            return self.grad_hess(
-                y_pred, y_true, sample_weight=sample_weight, **kwargs
-            )
+            return self.grad_hess(y_pred, y_true, sample_weight=sample_weight, **kwargs)
 
         objective.__name__ = f"{self._name}_xgb_objective"
         return objective
@@ -282,17 +275,13 @@ class MultiOutputObjective:
 
     def with_params(self, **kwargs: Any) -> MultiOutputObjective:
         """Create a new instance with default parameters set."""
-        new_instance = MultiOutputObjective(
-            loss_fn=self.loss_fn, n_outputs=self.n_outputs
-        )
+        new_instance = MultiOutputObjective(loss_fn=self.loss_fn, n_outputs=self.n_outputs)
         new_instance._default_kwargs = {**self._default_kwargs, **kwargs}
         return new_instance
 
     def __repr__(self) -> str:
         params = f", params={self._default_kwargs}" if self._default_kwargs else ""
-        return (
-            f"MultiOutputObjective({self._name}, n_outputs={self.n_outputs}{params})"
-        )
+        return f"MultiOutputObjective({self._name}, n_outputs={self.n_outputs}{params})"
 
 
 def multi_output_objective(
@@ -394,7 +383,3 @@ def laplace_nll(n_outputs: int = 2) -> MultiOutputObjective:
         return nll
 
     return lnll
-
-
-
-

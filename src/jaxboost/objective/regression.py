@@ -166,7 +166,7 @@ def tweedie(
 
     Common in insurance claims, rainfall prediction, and other scenarios
     with many zeros and positive continuous values.
-    
+
     Valid for 1 < p < 2.
     For p=1 (Poisson), use `poisson` objective.
     For p=2 (Gamma), use `gamma` objective.

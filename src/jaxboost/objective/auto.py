@@ -7,7 +7,8 @@ compatible objective functions using JAX automatic differentiation.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol
+from collections.abc import Callable
+from typing import Any, Protocol
 
 import jax
 import jax.numpy as jnp
@@ -18,9 +19,7 @@ from numpy.typing import NDArray
 class LossFunction(Protocol):
     """Protocol for loss functions."""
 
-    def __call__(
-        self, y_pred: jax.Array, y_true: jax.Array, **kwargs: Any
-    ) -> jax.Array:
+    def __call__(self, y_pred: jax.Array, y_true: jax.Array, **kwargs: Any) -> jax.Array:
         """Compute loss for a single sample."""
         ...
 
@@ -55,9 +54,7 @@ class AutoObjective:
 
         # Pre-compile gradient and Hessian functions
         self._grad_fn = jax.grad(self._loss_wrapper, argnums=0)
-        self._hess_fn = jax.grad(
-            lambda *args, **kw: self._grad_fn(*args, **kw), argnums=0
-        )
+        self._hess_fn = jax.grad(lambda *args, **kw: self._grad_fn(*args, **kw), argnums=0)
 
         # Cache for JIT-compiled vmap functions (keyed by array kwargs pattern)
         self._vmap_cache: dict[frozenset[str], tuple[Any, Any]] = {}
@@ -76,7 +73,7 @@ class AutoObjective:
         """Get or create JIT-compiled vmap functions for given array kwargs pattern."""
         if array_kwarg_keys not in self._vmap_cache:
             # Create in_axes: (0, 0, None for scalars, 0 for each array kwarg)
-            array_in_axes = {k: 0 for k in array_kwarg_keys}
+            array_in_axes = dict.fromkeys(array_kwarg_keys, 0)
             in_axes = (0, 0, None, array_in_axes if array_in_axes else None)
 
             vmap_grad = jax.jit(jax.vmap(self._grad_fn, in_axes=in_axes))
@@ -104,13 +101,11 @@ class AutoObjective:
 
         return scalar_kwargs, array_kwargs, frozenset(array_kwargs.keys())
 
-    def __call__(
-        self, y_pred: jax.Array, y_true: jax.Array, **kwargs: Any
-    ) -> jax.Array:
+    def __call__(self, y_pred: jax.Array, y_true: jax.Array, **kwargs: Any) -> jax.Array:
         """Compute the loss value for a batch."""
         n_samples = len(y_pred)
         scalar_kwargs, array_kwargs, array_keys = self._split_kwargs(kwargs, n_samples)
-        in_axes = (0, 0, None, {k: 0 for k in array_keys} if array_keys else None)
+        in_axes = (0, 0, None, dict.fromkeys(array_keys, 0) if array_keys else None)
         return jax.vmap(self._loss_wrapper, in_axes=in_axes)(
             y_pred, y_true, scalar_kwargs, array_kwargs
         )
@@ -137,9 +132,7 @@ class AutoObjective:
         y_true_jax = jnp.asarray(y_true, dtype=jnp.float32)
 
         n_samples = len(y_pred)
-        scalar_kwargs, array_kwargs, array_keys = self._split_kwargs(
-            merged_kwargs, n_samples
-        )
+        scalar_kwargs, array_kwargs, array_keys = self._split_kwargs(merged_kwargs, n_samples)
         vmap_grad, _ = self._get_vmap_fns(array_keys)
 
         grads = vmap_grad(y_pred_jax, y_true_jax, scalar_kwargs, array_kwargs)
@@ -167,9 +160,7 @@ class AutoObjective:
         y_true_jax = jnp.asarray(y_true, dtype=jnp.float32)
 
         n_samples = len(y_pred)
-        scalar_kwargs, array_kwargs, array_keys = self._split_kwargs(
-            merged_kwargs, n_samples
-        )
+        scalar_kwargs, array_kwargs, array_keys = self._split_kwargs(merged_kwargs, n_samples)
         _, vmap_hess = self._get_vmap_fns(array_keys)
 
         hess = vmap_hess(y_pred_jax, y_true_jax, scalar_kwargs, array_kwargs)
@@ -248,9 +239,7 @@ class AutoObjective:
                 except Exception:
                     pass
 
-            return self.grad_hess(
-                y_pred, y_true, sample_weight=sample_weight, **extra_kwargs
-            )
+            return self.grad_hess(y_pred, y_true, sample_weight=sample_weight, **extra_kwargs)
 
         objective.__name__ = f"{self._name}_xgb_objective"
         return objective
@@ -296,9 +285,7 @@ class AutoObjective:
         ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
             y_true = dataset.get_label()
             sample_weight = dataset.get_weight()
-            return self.grad_hess(
-                y_pred, y_true, sample_weight=sample_weight, **kwargs
-            )
+            return self.grad_hess(y_pred, y_true, sample_weight=sample_weight, **kwargs)
 
         objective.__name__ = f"{self._name}_lgb_objective"
         return objective
@@ -358,7 +345,3 @@ def auto_objective(func: LossFunction) -> AutoObjective:
         >>> model = xgb.train(params, dtrain, obj=my_custom_loss.xgb_objective)
     """
     return AutoObjective(func)
-
-
-
-

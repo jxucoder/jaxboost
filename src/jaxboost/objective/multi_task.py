@@ -1,7 +1,7 @@
 """
 Multi-task learning objective with missing label support.
 
-In multi-task learning, it's common for samples to have labels for only 
+In multi-task learning, it's common for samples to have labels for only
 some tasks. XGBoost's native multi-output doesn't support this well.
 
 This module provides objectives that:
@@ -13,19 +13,19 @@ Example (single-node):
     >>> import numpy as np
     >>> import xgboost as xgb
     >>> from jaxboost.objective import multi_task_regression
-    >>> 
+    >>>
     >>> # Data with missing labels (NaN)
     >>> y_true = np.array([[1.0, np.nan, 0.5],
     ...                    [np.nan, 2.0, 1.0]])
     >>> mask = ~np.isnan(y_true)  # True where valid
     >>> y_filled = np.nan_to_num(y_true, nan=0.0)  # Fill NaN for XGBoost
-    >>> 
+    >>>
     >>> # Create DMatrix
     >>> dtrain = xgb.DMatrix(X, label=y_filled.flatten())
-    >>> 
+    >>>
     >>> # Create objective with mask
     >>> obj = multi_task_regression(n_tasks=3)
-    >>> 
+    >>>
     >>> # Pass mask via get_xgb_objective
     >>> params = {'multi_strategy': 'multi_output_tree', 'num_target': 3}
     >>> model = xgb.train(params, dtrain, obj=obj.get_xgb_objective(mask=mask))
@@ -33,14 +33,15 @@ Example (single-node):
 Example (distributed / Ray XGBoost):
     >>> # Store mask in DMatrix so it gets partitioned with the data
     >>> dtrain.set_float_info("label_mask", mask.astype(np.float32).flatten())
-    >>> 
+    >>>
     >>> # Use mask_key to read mask from each worker's local DMatrix
     >>> model = xgb.train(params, dtrain, obj=obj.get_xgb_objective(mask_key="label_mask"))
 """
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import jax
 import jax.numpy as jnp
@@ -68,12 +69,12 @@ class MaskedMultiTaskObjective:
     Example:
         >>> # Basic usage
         >>> obj = MaskedMultiTaskObjective(n_tasks=3)
-        >>> 
+        >>>
         >>> # Custom per-task loss
         >>> @MaskedMultiTaskObjective(n_tasks=3)
         ... def my_mtl_loss(y_pred, y_true):
         ...     return (y_pred - y_true) ** 2
-        >>> 
+        >>>
         >>> # Different weights per task
         >>> obj = MaskedMultiTaskObjective(n_tasks=3, task_weights=[1.0, 2.0, 0.5])
     """
@@ -98,9 +99,7 @@ class MaskedMultiTaskObjective:
             # Default: squared error
             self._init_with_fn(lambda y_pred, y_true: (y_pred - y_true) ** 2)
 
-    def _init_with_fn(
-        self, task_loss_fn: Callable[[jax.Array, jax.Array], jax.Array]
-    ) -> None:
+    def _init_with_fn(self, task_loss_fn: Callable[[jax.Array, jax.Array], jax.Array]) -> None:
         """Initialize gradient/Hessian functions."""
         self.task_loss_fn = task_loss_fn
         self._name = getattr(task_loss_fn, "__name__", "masked_multi_task")
@@ -188,9 +187,7 @@ class MaskedMultiTaskObjective:
         mask_jax = jnp.asarray(mask_2d, dtype=jnp.float32)
 
         # Compute gradients for all samples (vectorized)
-        grads, _ = jax.vmap(self._compute_grad_hess_single)(
-            y_pred_jax, y_true_jax, mask_jax
-        )
+        grads, _ = jax.vmap(self._compute_grad_hess_single)(y_pred_jax, y_true_jax, mask_jax)
 
         return np.asarray(grads, dtype=np.float64).flatten()
 
@@ -226,9 +223,7 @@ class MaskedMultiTaskObjective:
         y_true_jax = jnp.asarray(y_true_2d, dtype=jnp.float32)
         mask_jax = jnp.asarray(mask_2d, dtype=jnp.float32)
 
-        _, hess = jax.vmap(self._compute_grad_hess_single)(
-            y_pred_jax, y_true_jax, mask_jax
-        )
+        _, hess = jax.vmap(self._compute_grad_hess_single)(y_pred_jax, y_true_jax, mask_jax)
 
         return np.asarray(hess, dtype=np.float64).flatten()
 
@@ -353,7 +348,7 @@ class MaskedMultiTaskObjective:
     ]:
         """
         XGBoost-compatible objective function (no mask).
-        
+
         For missing label support, use get_xgb_objective(mask=...) instead.
         """
         return self.get_xgb_objective(mask=None, **self._default_kwargs)
@@ -426,9 +421,7 @@ class MaskedMultiTaskObjective:
 def masked_multi_task_objective(
     n_tasks: int = 2,
     task_weights: list[float] | None = None,
-) -> Callable[
-    [Callable[[jax.Array, jax.Array], jax.Array]], MaskedMultiTaskObjective
-]:
+) -> Callable[[Callable[[jax.Array, jax.Array], jax.Array]], MaskedMultiTaskObjective]:
     """
     Decorator factory for masked multi-task objectives.
 
@@ -443,9 +436,7 @@ def masked_multi_task_objective(
         ...     return jnp.abs(y_pred - y_true)  # MAE instead of MSE
     """
 
-    def decorator(
-        func: Callable[[jax.Array, jax.Array], jax.Array]
-    ) -> MaskedMultiTaskObjective:
+    def decorator(func: Callable[[jax.Array, jax.Array], jax.Array]) -> MaskedMultiTaskObjective:
         return MaskedMultiTaskObjective(
             task_loss_fn=func, n_tasks=n_tasks, task_weights=task_weights
         )
@@ -499,11 +490,7 @@ def multi_task_classification(n_tasks: int) -> MaskedMultiTaskObjective:
         # y_pred is raw score (logit), y_true is 0 or 1
         # BCE = -y*log(sigmoid(s)) - (1-y)*log(1-sigmoid(s))
         #     = max(s, 0) - s*y + log(1 + exp(-|s|))
-        return (
-            jnp.maximum(y_pred, 0)
-            - y_pred * y_true
-            + jnp.log1p(jnp.exp(-jnp.abs(y_pred)))
-        )
+        return jnp.maximum(y_pred, 0) - y_pred * y_true + jnp.log1p(jnp.exp(-jnp.abs(y_pred)))
 
     return MaskedMultiTaskObjective(
         task_loss_fn=binary_logloss,
@@ -598,4 +585,3 @@ def multi_task_quantile(
             return grads, hess
 
     return QuantileMTL()
-

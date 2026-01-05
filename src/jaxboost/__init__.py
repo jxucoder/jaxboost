@@ -33,80 +33,60 @@ from jaxboost._version import __version__
 # =============================================================================
 # Core: Auto-Objective
 # =============================================================================
-from jaxboost.objective import (
-    # Core decorator
-    AutoObjective,
-    auto_objective,
-    # Multi-class/multi-output variants
-    MultiClassObjective,
-    multiclass_objective,
-    MultiOutputObjective,
-    multi_output_objective,
-    # Multi-task
-    MaskedMultiTaskObjective,
-    masked_multi_task_objective,
-)
-
 # =============================================================================
 # Built-in Objectives: Binary Classification
 # =============================================================================
-from jaxboost.objective import (
-    focal_loss,
-    binary_crossentropy,
-    weighted_binary_crossentropy,
-    hinge_loss,
-)
-
 # =============================================================================
 # Built-in Objectives: Regression
 # =============================================================================
-from jaxboost.objective import (
-    mse,
-    huber,
-    quantile,
-    tweedie,
-    asymmetric,
-    log_cosh,
-    pseudo_huber,
-    mae_smooth,
-)
-
 # =============================================================================
 # Built-in Objectives: Multi-class Classification
 # =============================================================================
-from jaxboost.objective import (
-    softmax_cross_entropy,
-    focal_multiclass,
-    label_smoothing,
-    class_balanced,
-)
-
 # =============================================================================
 # Built-in Objectives: Survival Analysis
 # =============================================================================
-from jaxboost.objective import (
-    cox_partial_likelihood,
-    aft,
-    weibull_aft,
-    interval_regression,
-)
-
 # =============================================================================
 # Built-in Objectives: Multi-task Learning
 # =============================================================================
-from jaxboost.objective import (
-    multi_task_regression,
-    multi_task_classification,
-    multi_task_huber,
-    multi_task_quantile,
-)
-
 # =============================================================================
 # Built-in Objectives: Multi-output (Uncertainty)
 # =============================================================================
 from jaxboost.objective import (
+    # Core decorator
+    AutoObjective,
+    # Multi-task
+    MaskedMultiTaskObjective,
+    # Multi-class/multi-output variants
+    MultiClassObjective,
+    MultiOutputObjective,
+    aft,
+    asymmetric,
+    auto_objective,
+    binary_crossentropy,
+    class_balanced,
+    focal_loss,
+    focal_multiclass,
     gaussian_nll,
+    hinge_loss,
+    huber,
+    label_smoothing,
     laplace_nll,
+    log_cosh,
+    mae_smooth,
+    masked_multi_task_objective,
+    mse,
+    multi_output_objective,
+    multi_task_classification,
+    multi_task_huber,
+    multi_task_quantile,
+    multi_task_regression,
+    multiclass_objective,
+    pseudo_huber,
+    quantile,
+    softmax_cross_entropy,
+    tweedie,
+    weibull_aft,
+    weighted_binary_crossentropy,
 )
 
 __all__ = [
@@ -140,10 +120,8 @@ __all__ = [
     "label_smoothing",
     "class_balanced",
     # Survival
-    "cox_partial_likelihood",
     "aft",
     "weibull_aft",
-    "interval_regression",
     # Multi-task
     "multi_task_regression",
     "multi_task_classification",
