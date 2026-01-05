@@ -1,8 +1,8 @@
 site_name: JAXBoost
 site_description: JAX autodiff for XGBoost/LightGBM objectives
-site_url: https://github.com/jxu/jaxboost
-repo_url: https://github.com/jxu/jaxboost
-repo_name: jxu/jaxboost
+site_url: https://jxucoder.github.io/jaxboost/
+repo_url: https://github.com/jxucoder/jaxboost
+repo_name: jxucoder/jaxboost
 
 theme:
   name: material
@@ -80,7 +80,7 @@ markdown_extensions:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/jxu/jaxboost
+      link: https://github.com/jxucoder/jaxboost
 
 extra_javascript:
   - https://polyfill.io/v3/polyfill.min.js?features=es6
