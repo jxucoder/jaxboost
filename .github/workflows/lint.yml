@@ -25,8 +25,8 @@ jobs:
         run: uv pip install ruff
 
       - name: Check formatting
-        run: uv run ruff format --check src/ tests/
+        run: ruff format --check src/ tests/
 
       - name: Check linting
-        run: uv run ruff check src/ tests/
+        run: ruff check src/ tests/
 

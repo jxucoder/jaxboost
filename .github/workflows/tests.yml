@@ -27,15 +27,16 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --dev --no-install-project
-          # Install without jax-metal (macOS only)
+          # Install dev dependencies (includes pytest)
+          uv pip install pytest ruff
+          # Install jaxboost without jax-metal (macOS only)
           uv pip install -e . --no-deps
           uv pip install "jax>=0.4.20" "jaxlib>=0.4.20" "optax>=0.1.7" "chex>=0.1.8"
 
       - name: Run tests
         env:
           JAX_PLATFORMS: cpu
-        run: uv run pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short
 
       - name: Run tests with coverage
         if: matrix.python-version == '3.11'
@@ -43,7 +44,7 @@ jobs:
           JAX_PLATFORMS: cpu
         run: |
           uv pip install pytest-cov
-          uv run pytest tests/ --cov=jaxboost --cov-report=xml --cov-report=term-missing
+          pytest tests/ --cov=jaxboost --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage
         if: matrix.python-version == '3.11'
