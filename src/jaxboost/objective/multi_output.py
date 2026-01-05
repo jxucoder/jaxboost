@@ -395,3 +395,6 @@ def laplace_nll(n_outputs: int = 2) -> MultiOutputObjective:
 
     return lnll
 
+
+
+

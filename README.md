@@ -2,13 +2,9 @@
   <img src="assets/logo.png" alt="jaxboost" width="300">
 </p>
 
-Differentiable gradient boosting in JAX.
+**JAX autodiff for XGBoost/LightGBM objectives.**
 
-Two things:
-
-1. **Soft trees** - End-to-end differentiable tree ensembles using sigmoid routing, trainable via gradient descent (unlike greedy XGBoost/LightGBM)
-
-2. **XGBoost/LightGBM objectives** - Define custom losses with `@auto_objective` decorator, get gradients/Hessians via JAX autodiff.
+Write a loss function, get gradients and Hessians automatically. No manual derivation needed.
 
 ## Install
 
@@ -16,127 +12,129 @@ Two things:
 pip install jaxboost
 ```
 
-## XGBoost/LightGBM Objectives
-
-Use built-in objectives or define your own - gradients and Hessians computed automatically:
+## Quick Start
 
 ```python
 import xgboost as xgb
-from jaxboost.objective import focal_loss, huber, quantile, auto_objective
+from jaxboost import auto_objective, focal_loss, huber, quantile
 
-# Built-in objectives
+# Built-in objectives - just use them
 model = xgb.train(params, dtrain, obj=focal_loss.xgb_objective)
 model = xgb.train(params, dtrain, obj=huber.xgb_objective)
 model = xgb.train(params, dtrain, obj=quantile(0.9).xgb_objective)
 
-# Custom objective - just write the loss, autodiff handles the rest
+# Custom objective - write the loss, autodiff handles the rest
 @auto_objective
-def my_loss(y_pred, y_true):
+def asymmetric_mse(y_pred, y_true, alpha=0.7):
+    error = y_true - y_pred
+    return jnp.where(error > 0, alpha * error**2, (1 - alpha) * error**2)
+
+model = xgb.train(params, dtrain, obj=asymmetric_mse.xgb_objective)
+```
+
+Works with **XGBoost**, **LightGBM**, and **CatBoost**.
+
+## Available Objectives
+
+### Regression
+| Objective | Description |
+|-----------|-------------|
+| `mse` | Mean squared error |
+| `huber` | Huber loss (robust to outliers) |
+| `quantile(q)` | Quantile regression |
+| `tweedie(p)` | Tweedie deviance |
+| `asymmetric(alpha)` | Asymmetric squared error |
+| `log_cosh` | Log-cosh loss |
+
+### Binary Classification
+| Objective | Description |
+|-----------|-------------|
+| `focal_loss` | Focal loss for imbalanced data |
+| `binary_crossentropy` | Standard log loss |
+| `hinge_loss` | SVM-style hinge loss |
+
+### Multi-class Classification
+| Objective | Description |
+|-----------|-------------|
+| `softmax_cross_entropy` | Standard multi-class |
+| `focal_multiclass` | Focal loss for multi-class |
+| `label_smoothing(eps)` | Label smoothing regularization |
+
+### Survival Analysis
+| Objective | Description |
+|-----------|-------------|
+| `cox_partial_likelihood` | Cox proportional hazards |
+| `aft` | Accelerated failure time |
+| `weibull_aft` | Weibull AFT model |
+
+### Multi-task Learning
+| Objective | Description |
+|-----------|-------------|
+| `multi_task_regression` | Multiple regression targets |
+| `multi_task_classification` | Multiple classification targets |
+| `MaskedMultiTaskObjective` | Handle missing labels |
+
+### Uncertainty Estimation
+| Objective | Description |
+|-----------|-------------|
+| `gaussian_nll` | Predict mean + variance |
+| `laplace_nll` | Predict median + scale |
+
+## Custom Objectives
+
+The `@auto_objective` decorator turns any loss function into an XGBoost/LightGBM objective:
+
+```python
+import jax.numpy as jnp
+from jaxboost import auto_objective
+
+@auto_objective
+def my_custom_loss(y_pred, y_true, **kwargs):
+    # Write your loss here - JAX computes grad/hess automatically
     return (y_pred - y_true) ** 2
 
-model = xgb.train(params, dtrain, obj=my_loss.xgb_objective)
+# Use with XGBoost
+model = xgb.train(params, dtrain, obj=my_custom_loss.xgb_objective)
+
+# Use with LightGBM
+model = lgb.train(params, dtrain, fobj=my_custom_loss.lgb_objective)
+
+# Pass parameters
+model = xgb.train(params, dtrain, obj=my_custom_loss.get_xgb_objective(alpha=0.5))
 ```
 
-Available: `focal_loss`, `huber`, `quantile`, `tweedie`, `softmax_cross_entropy`, `cox_partial_likelihood`, `multi_task_regression`, and more. See `jaxboost.objective`.
-
-## Soft Trees
+## Multi-class Example
 
 ```python
-from jaxboost import GBMTrainer
+from jaxboost import multiclass_objective
+import jax.numpy as jnp
 
-trainer = GBMTrainer(task="regression")  # or "classification"
-model = trainer.fit(X_train, y_train)
-predictions = model.predict(X_test)
-```
+@multiclass_objective(num_classes=3)
+def custom_multiclass(logits, label):
+    # logits: (num_classes,), label: scalar
+    probs = jax.nn.softmax(logits)
+    return -jnp.log(probs[label] + 1e-7)
 
-With config:
-
-```python
-from jaxboost import GBMTrainer, TrainerConfig
-
-config = TrainerConfig(
-    n_trees=20,
-    depth=4,
-    learning_rate=0.01,
-    epochs=500,
-    patience=50,
+model = xgb.train(
+    {"num_class": 3, "objective": "multi:softmax"},
+    dtrain,
+    obj=custom_multiclass.xgb_objective
 )
-trainer = GBMTrainer(task="regression", config=config)
 ```
 
-## Split Functions
+## Why jaxboost?
 
-Control how each tree node splits the data:
-
-| Split | What it does |
-|-------|--------------|
-| `HyperplaneSplit` | Linear combination of features (default) |
-| `AxisAlignedSplit` | Single feature threshold, like traditional trees |
-| `SparseHyperplaneSplit` | Learned feature selection via soft gates |
-| `TopKHyperplaneSplit` | Hard top-k feature selection |
-| `AttentionSplit` | Input-dependent feature weighting |
-
-## Tree Structures
-
-| Structure | What it does |
-|-----------|--------------|
-| `ObliviousTree` | Same split at each depth (like CatBoost), constant leaf values |
-| `LinearLeafTree` | Linear models at leaves, can extrapolate beyond training range |
-
-## Mixture of Experts
-
-Differentiable MOE with soft tree experts:
-
-```python
-from jaxboost.ensemble import MOEEnsemble
-
-moe = MOEEnsemble(num_experts=4, trees_per_expert=10, gating="tree")
-params = moe.fit(X_train, y_train)
-predictions = moe.predict(params, X_test)
-```
-
-EM-MOE with XGBoost/LightGBM/CatBoost experts:
-
-```python
-from jaxboost.ensemble import EMMOE, EMConfig, create_xgboost_expert
-
-experts = [create_xgboost_expert(n_estimators=100) for _ in range(4)]
-config = EMConfig(num_experts=4, em_iterations=10, expert_init_strategy="cluster")
-
-moe = EMMOE(experts, config=config)
-moe.fit(X_train, y_train)
-mean, std = moe.predict_with_uncertainty(X_test)
-```
-
-## Low-Level API
-
-```python
-import jax
-from jaxboost import ObliviousTree, HyperplaneSplit, soft_routing
-
-key = jax.random.PRNGKey(0)
-tree = ObliviousTree()
-split_fn = HyperplaneSplit()
-
-params = tree.init_params(key, depth=4, num_features=10, split_fn=split_fn)
-predictions = tree.forward(params, X, split_fn, lambda s: soft_routing(s, temperature=1.0))
-```
-
-## Examples
-
-```bash
-python examples/quickstart.py
-python examples/linear_leaf_extrapolation.py
-python examples/benchmark_splits.py
-python examples/moe_demo.py
-python examples/hybrid_moe_demo.py
-```
+| Traditional Approach | jaxboost |
+|---------------------|----------|
+| Derive gradients by hand | Write loss, get gradients free |
+| Derive Hessians by hand | Write loss, get Hessians free |
+| Error-prone math | JAX autodiff is correct by construction |
+| One loss = hours of work | One loss = 5 lines of code |
 
 ## Requirements
 
 - Python >= 3.10
 - JAX >= 0.4.20
-- optax >= 0.1.7
 
 ## License
 

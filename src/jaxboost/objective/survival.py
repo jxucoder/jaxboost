@@ -85,91 +85,6 @@ def aft(
     return loss
 
 
-@AutoObjective
-def interval_regression(
-    y_pred: jax.Array,
-    y_true: jax.Array,
-    label_lower_bound: jax.Array | None = None,
-    label_upper_bound: jax.Array | None = None,
-    sigma: float = 1.0,
-) -> jax.Array:
-    """
-    Interval Regression Loss for censored/interval data.
-
-    Handles three cases:
-    - Uncensored: lower == upper (exact observation)
-    - Right-censored: upper == inf (only lower bound known)
-    - Left-censored: lower == -inf (only upper bound known)
-    - Interval-censored: lower < upper (observation in range)
-
-    Uses a log-normal likelihood approach.
-
-    Args:
-        y_pred: Log of predicted value
-        y_true: Label (used as lower bound if bounds not provided)
-        label_lower_bound: Lower bound of interval (optional)
-        label_upper_bound: Upper bound of interval (optional)
-        sigma: Scale parameter for the distribution
-
-    Example:
-        >>> dtrain = xgb.DMatrix(X, label=y)
-        >>> dtrain.set_float_info('label_lower_bound', lower_bounds)
-        >>> dtrain.set_float_info('label_upper_bound', upper_bounds)
-        >>> model = xgb.train(params, dtrain, obj=interval_regression.xgb_objective)
-    """
-    # Use y_true as default bounds if not provided
-    lower = y_true if label_lower_bound is None else label_lower_bound
-    upper = y_true if label_upper_bound is None else label_upper_bound
-
-    # Standardized residuals
-    z_lower = (jnp.log(jnp.maximum(lower, 1e-10)) - y_pred) / sigma
-    z_upper = (jnp.log(jnp.maximum(upper, 1e-10)) - y_pred) / sigma
-
-    # Check if uncensored (lower == upper)
-    is_uncensored = jnp.abs(upper - lower) < 1e-10
-
-    # Uncensored: negative log of normal PDF
-    uncensored_loss = 0.5 * z_lower**2 + jnp.log(sigma)
-
-    # Censored: negative log of CDF difference
-    cdf_upper = jax.scipy.stats.norm.cdf(z_upper)
-    cdf_lower = jax.scipy.stats.norm.cdf(z_lower)
-    interval_prob = jnp.maximum(cdf_upper - cdf_lower, 1e-10)
-    censored_loss = -jnp.log(interval_prob)
-
-    return jnp.where(is_uncensored, uncensored_loss, censored_loss)
-
-
-@AutoObjective
-def cox_partial_likelihood(
-    y_pred: jax.Array,
-    y_true: jax.Array,
-    is_event: jax.Array | None = None,
-) -> jax.Array:
-    """
-    Cox Proportional Hazards partial likelihood loss (per-sample approximation).
-
-    Note: This is a simplified per-sample approximation. For true Cox PH,
-    the loss involves the risk set at each event time, which requires
-    special handling not fully captured in this per-sample formulation.
-
-    Args:
-        y_pred: Log hazard ratio prediction
-        y_true: Observed time
-        is_event: Whether the observation is an event (1) or censored (0)
-
-    Example:
-        >>> model = xgb.train(params, dtrain, obj=cox_partial_likelihood.xgb_objective)
-    """
-    # Default: all observations are events
-    event = jnp.ones_like(y_true) if is_event is None else is_event
-
-    # Simplified per-sample loss: event * (log_sum_exp - y_pred)
-    # This is an approximation; true Cox requires ranking
-    loss = event * (jnp.exp(y_pred) - y_pred)
-
-    return loss
-
 
 @AutoObjective
 def weibull_aft(
@@ -237,4 +152,7 @@ def weibull_aft(
     )
 
     return loss
+
+
+
 

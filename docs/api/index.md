@@ -1,40 +1,55 @@
 # API Reference
 
-Welcome to the JAXBoost API reference documentation.
+Welcome to the jaxboost API reference documentation.
 
 ## Overview
 
-JAXBoost provides both high-level and low-level APIs:
+jaxboost provides automatic objective functions for XGBoost, LightGBM, and CatBoost using JAX automatic differentiation.
 
-### High-Level API (Recommended)
+### Core
 
-- [`GBMTrainer`](training.md#jaxboost.training.GBMTrainer) - Main training interface
-- [`TrainerConfig`](training.md#jaxboost.training.TrainerConfig) - Configuration options
+- [`@auto_objective`](losses.md) - Decorator to create custom objectives
+- [`AutoObjective`](losses.md) - Class for custom objective functions
+- [`MultiClassObjective`](losses.md) - Multi-class classification objectives
+- [`MultiOutputObjective`](losses.md) - Multi-output objectives (uncertainty)
+- [`MaskedMultiTaskObjective`](losses.md) - Multi-task with missing labels
 
-### Ensemble & Mixture of Experts
+### Built-in Objectives
 
-- [`MOEEnsemble`](ensemble.md#jaxboost.ensemble.MOEEnsemble) - Differentiable MOE with soft tree experts
-- [`EMMOE`](ensemble.md#jaxboost.ensemble.hybrid_moe.EMMOE) - EM-trained MOE with XGBoost/LightGBM/CatBoost experts
-- [Gating Networks](ensemble.md) - Linear, MLP, and Tree gating
-
-### Low-Level Components
-
-- [Splits](splits.md) - Split functions (axis-aligned, hyperplane)
-- [Structures](structures.md) - Tree structures (oblivious trees)
-- [Routing](routing.md) - Soft routing functions
-- [Aggregation](aggregation.md) - Boosting aggregation
-- [Losses](losses.md) - Loss functions
+- [Binary Classification](losses.md#binary-classification) - `focal_loss`, `binary_crossentropy`, `hinge_loss`
+- [Regression](losses.md#regression) - `mse`, `huber`, `quantile`, `tweedie`, `asymmetric`
+- [Multi-class](losses.md#multi-class-classification) - `softmax_cross_entropy`, `focal_multiclass`
+- [Survival](losses.md#survival-analysis) - `cox_partial_likelihood`, `aft`, `weibull_aft`
+- [Multi-task](losses.md#multi-task-learning) - `multi_task_regression`, `multi_task_classification`
+- [Uncertainty](losses.md#uncertainty-estimation) - `gaussian_nll`, `laplace_nll`
 
 ## Module Structure
 
 ```
 jaxboost/
-├── training/      # High-level training API
-├── ensemble/      # MOE architectures (differentiable & hybrid)
-├── splits/        # Split mechanisms
-├── structures/    # Tree structures
-├── routing/       # Soft routing
-├── aggregation/   # Ensemble aggregation
-└── losses/        # Loss functions
+└── objective/      # Automatic objective functions
+    ├── auto.py         # @auto_objective decorator
+    ├── binary.py       # Binary classification
+    ├── regression.py   # Regression objectives
+    ├── multiclass.py   # Multi-class classification
+    ├── multi_output.py # Multi-output (uncertainty)
+    ├── multi_task.py   # Multi-task learning
+    └── survival.py     # Survival analysis
 ```
 
+## Quick Example
+
+```python
+import xgboost as xgb
+from jaxboost import auto_objective, focal_loss
+
+# Use built-in objective
+model = xgb.train(params, dtrain, obj=focal_loss.xgb_objective)
+
+# Create custom objective
+@auto_objective
+def my_loss(y_pred, y_true):
+    return (y_pred - y_true) ** 2
+
+model = xgb.train(params, dtrain, obj=my_loss.xgb_objective)
+```

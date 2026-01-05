@@ -2,15 +2,16 @@
   <img src="assets/logo.png" alt="jaxboost" width="300">
 </p>
 
-**Next-generation differentiable gradient boosting with JAX**
+**JAX autodiff for XGBoost/LightGBM objectives**
+
+Write a loss function, get gradients and Hessians automatically. No manual derivation needed.
 
 ## Features
 
-- 🌳 **Soft Oblivious Trees** - Differentiable tree structures with sigmoid routing
-- ✂️ **Hyperplane Splits** - Capture feature interactions beyond axis-aligned splits
-- 🚀 **GPU-Efficient** - Vectorized computation leveraging JAX's JIT compilation
-- 🔄 **End-to-End Training** - Gradient-based optimization via optax
-- 🎯 **Mixture of Experts** - MOE with soft tree experts or XGBoost/LightGBM/CatBoost
+- **Automatic Gradients** - JAX computes gradients for any loss function
+- **Automatic Hessians** - Second derivatives computed automatically
+- **Built-in Objectives** - Focal loss, Huber, quantile, survival, and more
+- **Works Everywhere** - XGBoost, LightGBM, CatBoost compatible
 
 ## Installation
 
@@ -21,20 +22,31 @@ pip install jaxboost
 ## Quick Example
 
 ```python
-from jaxboost import GBMTrainer
+import xgboost as xgb
+from jaxboost import auto_objective, focal_loss
 
-# Create trainer
-trainer = GBMTrainer(task="regression")
+# Use built-in objectives
+model = xgb.train(params, dtrain, obj=focal_loss.xgb_objective)
 
-# Fit model
-model = trainer.fit(X_train, y_train)
+# Or create your own
+@auto_objective
+def my_loss(y_pred, y_true):
+    return (y_pred - y_true) ** 2
 
-# Predict
-predictions = model.predict(X_test)
+model = xgb.train(params, dtrain, obj=my_loss.xgb_objective)
 ```
+
+## Why jaxboost?
+
+| Traditional Approach | jaxboost |
+|---------------------|----------|
+| Derive gradients by hand | Write loss, get gradients free |
+| Derive Hessians by hand | Write loss, get Hessians free |
+| Error-prone math | JAX autodiff is correct by construction |
+| One loss = hours of work | One loss = 5 lines of code |
 
 ## Next Steps
 
-- [Quick Start Guide](getting-started/quickstart.md) - Get started with JAXBoost
+- [Quick Start Guide](getting-started/quickstart.md) - Get started with jaxboost
 - [API Reference](api/index.md) - Detailed API documentation
-
+- [Research Notes](research.md) - Archived research work on differentiable trees

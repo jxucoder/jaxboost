@@ -359,3 +359,6 @@ def auto_objective(func: LossFunction) -> AutoObjective:
     """
     return AutoObjective(func)
 
+
+
+

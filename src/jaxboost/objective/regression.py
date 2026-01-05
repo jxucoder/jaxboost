@@ -32,6 +32,54 @@ def mse(
 
 
 @AutoObjective
+def poisson(
+    y_pred: jax.Array,
+    y_true: jax.Array,
+) -> jax.Array:
+    """
+    Poisson Negative Log-Likelihood.
+
+    For count data. Assumes log-link function (y_pred is log(lambda)).
+    Loss = exp(y_pred) - y_true * y_pred
+
+    Args:
+        y_pred: Log of the expected count (log(lambda))
+        y_true: True count (must be non-negative)
+
+    Example:
+        >>> model = xgb.train(params, dtrain, obj=poisson.xgb_objective)
+    """
+    # Standard Poisson NLL ignoring constant log(y!) term
+    return jnp.exp(y_pred) - y_true * y_pred
+
+
+@AutoObjective
+def gamma(
+    y_pred: jax.Array,
+    y_true: jax.Array,
+) -> jax.Array:
+    """
+    Gamma Negative Log-Likelihood.
+
+    For positive continuous data (e.g. insurance claims, wait times).
+    Assumes log-link function (y_pred is log(mean)).
+    Loss = y_pred + y_true / exp(y_pred)
+
+    Args:
+        y_pred: Log of the expected value (log(mean))
+        y_true: True value (must be positive)
+
+    Example:
+        >>> model = xgb.train(params, dtrain, obj=gamma.xgb_objective)
+    """
+    # Gamma deviance-like loss: -log(y/mu) + (y-mu)/mu
+    # With log-link mu = exp(pred):
+    # Loss ~ log(mu) + y/mu
+    #      = y_pred + y_true * exp(-y_pred)
+    return y_pred + y_true * jnp.exp(-y_pred)
+
+
+@AutoObjective
 def huber(
     y_pred: jax.Array,
     y_true: jax.Array,
@@ -118,13 +166,15 @@ def tweedie(
 
     Common in insurance claims, rainfall prediction, and other scenarios
     with many zeros and positive continuous values.
+    
+    Valid for 1 < p < 2.
+    For p=1 (Poisson), use `poisson` objective.
+    For p=2 (Gamma), use `gamma` objective.
 
     Args:
         y_pred: Raw prediction (will be exponentiated to ensure positivity)
         y_true: True value (must be non-negative)
         p: Tweedie power parameter. Default: 1.5
-           - p=1: Poisson-like
-           - p=2: Gamma-like
            - 1<p<2: Compound Poisson-Gamma (most common for insurance)
 
     Example:
@@ -237,4 +287,3 @@ def mae_smooth(
     """
     error = y_pred - y_true
     return jnp.sqrt(error**2 + beta**2) - beta
-

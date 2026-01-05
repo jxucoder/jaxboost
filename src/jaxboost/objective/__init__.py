@@ -12,7 +12,7 @@ Quick Start:
     >>>
     >>> # Create custom objective
     >>> @auto_objective
-    ... def my_loss(y_pred, y_true, alpha=0.5):
+    >>> def my_loss(y_pred, y_true, alpha=0.5):
     ...     return alpha * (y_pred - y_true) ** 2
     >>>
     >>> model = xgb.train(params, dtrain, obj=my_loss.xgb_objective)
@@ -43,10 +43,12 @@ from jaxboost.objective.binary import (
 # Regression objectives
 from jaxboost.objective.regression import (
     asymmetric,
+    gamma,
     huber,
     log_cosh,
     mae_smooth,
     mse,
+    poisson,
     pseudo_huber,
     quantile,
     tweedie,
@@ -63,8 +65,6 @@ from jaxboost.objective.multiclass import (
 # Survival analysis objectives
 from jaxboost.objective.survival import (
     aft,
-    cox_partial_likelihood,
-    interval_regression,
     weibull_aft,
 )
 
@@ -78,10 +78,10 @@ from jaxboost.objective.multi_output import (
 from jaxboost.objective.multi_task import (
     MaskedMultiTaskObjective,
     masked_multi_task_objective,
-    multi_task_regression,
     multi_task_classification,
     multi_task_huber,
     multi_task_quantile,
+    multi_task_regression,
 )
 
 __all__ = [
@@ -99,6 +99,8 @@ __all__ = [
     "hinge_loss",
     # Regression
     "mse",
+    "poisson",
+    "gamma",
     "huber",
     "quantile",
     "tweedie",
@@ -113,8 +115,6 @@ __all__ = [
     "class_balanced",
     # Survival
     "aft",
-    "interval_regression",
-    "cox_partial_likelihood",
     "weibull_aft",
     # Multi-output
     "gaussian_nll",
@@ -127,4 +127,3 @@ __all__ = [
     "multi_task_huber",
     "multi_task_quantile",
 ]
-

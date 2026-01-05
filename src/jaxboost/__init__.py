@@ -1,137 +1,155 @@
 """
-jaxboost: Differentiable gradient boosting with JAX.
+jaxboost: JAX autodiff for XGBoost/LightGBM objectives.
 
-Two main capabilities:
-1. Native soft decision trees - end-to-end differentiable training
-2. XGBoost/LightGBM objective generator - automatic gradient/Hessian computation
+Write a loss function, get gradients and Hessians automatically via JAX.
+Works with XGBoost, LightGBM, and CatBoost.
 
-Features:
-- Soft oblivious trees with sigmoid routing
-- Linear leaf trees for extrapolation beyond training data
-- Hyperplane splits for feature interactions
-- Sparse splits for interpretable feature selection
-- Attention-based splits for input-dependent routing
-- Information Bottleneck trees for principled regularization
-- Mixture of Experts (MOE) with GBDT experts
-- Neural ODE boosting for continuous-time dynamics
-- GPU-efficient vectorized computation
-- End-to-end training via optax
-- Automatic objective functions for XGBoost/LightGBM
-
-Quick Start (Soft Trees):
-    >>> from jaxboost import GBMTrainer
-    >>> trainer = GBMTrainer(task="regression")
-    >>> model = trainer.fit(X_train, y_train)
-    >>> predictions = model.predict(X_test)
-
-Quick Start (MOE Ensemble):
-    >>> from jaxboost.ensemble import MOEEnsemble
-    >>> moe = MOEEnsemble(num_experts=4, gating="tree")
-    >>> params = moe.fit(X_train, y_train)
-    >>> predictions = moe.predict(params, X_test)
-
-Quick Start (XGBoost Objectives):
-    >>> from jaxboost.objective import focal_loss, auto_objective
-    >>> model = xgb.train(params, dtrain, obj=focal_loss.xgb_objective)
+Quick Start:
+    >>> import xgboost as xgb
+    >>> from jaxboost import auto_objective, focal_loss, huber, quantile
     >>>
+    >>> # Use built-in objectives
+    >>> model = xgb.train(params, dtrain, obj=focal_loss.xgb_objective)
+    >>> model = xgb.train(params, dtrain, obj=huber.xgb_objective)
+    >>> model = xgb.train(params, dtrain, obj=quantile(0.9).xgb_objective)
+    >>>
+    >>> # Custom objective - just write the loss, autodiff handles the rest
     >>> @auto_objective
     ... def my_loss(y_pred, y_true):
     ...     return (y_pred - y_true) ** 2
+    >>>
     >>> model = xgb.train(params, dtrain, obj=my_loss.xgb_objective)
+
+Available Objectives:
+    - Binary: focal_loss, binary_crossentropy, hinge_loss
+    - Regression: mse, huber, quantile, tweedie, asymmetric, log_cosh
+    - Multi-class: softmax_cross_entropy, focal_multiclass, label_smoothing
+    - Survival: cox_partial_likelihood, aft, weibull_aft
+    - Multi-task: multi_task_regression, multi_task_classification
 """
 
 from jaxboost._version import __version__
 
-# High-level API (recommended)
-from jaxboost.training import GBMTrainer, TrainerConfig
-
-# XGBoost/LightGBM objective functions (convenient imports)
+# =============================================================================
+# Core: Auto-Objective
+# =============================================================================
 from jaxboost.objective import (
+    # Core decorator
     AutoObjective,
     auto_objective,
+    # Multi-class/multi-output variants
+    MultiClassObjective,
+    multiclass_objective,
+    MultiOutputObjective,
+    multi_output_objective,
+    # Multi-task
+    MaskedMultiTaskObjective,
+    masked_multi_task_objective,
+)
+
+# =============================================================================
+# Built-in Objectives: Binary Classification
+# =============================================================================
+from jaxboost.objective import (
     focal_loss,
+    binary_crossentropy,
+    weighted_binary_crossentropy,
+    hinge_loss,
+)
+
+# =============================================================================
+# Built-in Objectives: Regression
+# =============================================================================
+from jaxboost.objective import (
+    mse,
     huber,
     quantile,
+    tweedie,
+    asymmetric,
+    log_cosh,
+    pseudo_huber,
+    mae_smooth,
 )
 
-# Low-level components
-from jaxboost.aggregation import EulerBoosting, ODEBoosting, boosting_aggregate
-from jaxboost.losses import mse_loss, sigmoid_binary_cross_entropy
-from jaxboost.routing import soft_routing
-from jaxboost.splits import (
-    AxisAlignedSplit,
-    AxisAlignedSplitParams,
-    FactorizedInteractionSplit,
-    FactorizedInteractionParams,
-    HyperplaneSplit,
-    HyperplaneSplitParams,
-    InteractionDiscoverySplit,
-    InteractionDiscoveryParams,
-    SparseHyperplaneSplit,
-    SparseHyperplaneSplitParams,
-    TopKHyperplaneSplit,
-    TopKHyperplaneSplitParams,
-)
-from jaxboost.structures import (
-    ObliviousTree,
-    ObliviousTreeParams,
-    LinearLeafTree,
-    LinearLeafParams,
-    LinearLeafEnsemble,
+# =============================================================================
+# Built-in Objectives: Multi-class Classification
+# =============================================================================
+from jaxboost.objective import (
+    softmax_cross_entropy,
+    focal_multiclass,
+    label_smoothing,
+    class_balanced,
 )
 
-# Ensemble methods (MOE)
-from jaxboost.ensemble import (
-    MOEEnsemble,
-    MOEParams,
-    LinearGating,
-    MLPGating,
-    TreeGating,
+# =============================================================================
+# Built-in Objectives: Survival Analysis
+# =============================================================================
+from jaxboost.objective import (
+    cox_partial_likelihood,
+    aft,
+    weibull_aft,
+    interval_regression,
+)
+
+# =============================================================================
+# Built-in Objectives: Multi-task Learning
+# =============================================================================
+from jaxboost.objective import (
+    multi_task_regression,
+    multi_task_classification,
+    multi_task_huber,
+    multi_task_quantile,
+)
+
+# =============================================================================
+# Built-in Objectives: Multi-output (Uncertainty)
+# =============================================================================
+from jaxboost.objective import (
+    gaussian_nll,
+    laplace_nll,
 )
 
 __all__ = [
     "__version__",
-    # High-level API
-    "GBMTrainer",
-    "TrainerConfig",
-    # XGBoost/LightGBM Objectives (see jaxboost.objective for more)
+    # Core
     "AutoObjective",
     "auto_objective",
+    "MultiClassObjective",
+    "multiclass_objective",
+    "MultiOutputObjective",
+    "multi_output_objective",
+    "MaskedMultiTaskObjective",
+    "masked_multi_task_objective",
+    # Binary classification
     "focal_loss",
+    "binary_crossentropy",
+    "weighted_binary_crossentropy",
+    "hinge_loss",
+    # Regression
+    "mse",
     "huber",
     "quantile",
-    # Splits
-    "AxisAlignedSplit",
-    "AxisAlignedSplitParams",
-    "HyperplaneSplit",
-    "HyperplaneSplitParams",
-    "SparseHyperplaneSplit",
-    "SparseHyperplaneSplitParams",
-    "TopKHyperplaneSplit",
-    "TopKHyperplaneSplitParams",
-    "InteractionDiscoverySplit",
-    "InteractionDiscoveryParams",
-    "FactorizedInteractionSplit",
-    "FactorizedInteractionParams",
-    # Routing
-    "soft_routing",
-    # Structures
-    "ObliviousTree",
-    "ObliviousTreeParams",
-    "LinearLeafTree",
-    "LinearLeafParams",
-    "LinearLeafEnsemble",
-    # Aggregation
-    "boosting_aggregate",
-    "ODEBoosting",
-    "EulerBoosting",
-    # Losses (for soft trees)
-    "mse_loss",
-    "sigmoid_binary_cross_entropy",
-    # Ensemble (MOE)
-    "MOEEnsemble",
-    "MOEParams",
-    "LinearGating",
-    "MLPGating",
-    "TreeGating",
+    "tweedie",
+    "asymmetric",
+    "log_cosh",
+    "pseudo_huber",
+    "mae_smooth",
+    # Multi-class
+    "softmax_cross_entropy",
+    "focal_multiclass",
+    "label_smoothing",
+    "class_balanced",
+    # Survival
+    "cox_partial_likelihood",
+    "aft",
+    "weibull_aft",
+    "interval_regression",
+    # Multi-task
+    "multi_task_regression",
+    "multi_task_classification",
+    "multi_task_huber",
+    "multi_task_quantile",
+    # Multi-output
+    "gaussian_nll",
+    "laplace_nll",
 ]
