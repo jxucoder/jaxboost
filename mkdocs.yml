@@ -53,9 +53,11 @@ nav:
   - Home: index.md
   - Getting Started:
       - Quick Start: getting-started/quickstart.md
+  - Benchmarks: benchmarks.md
   - API Reference:
       - Overview: api/index.md
       - Objectives: api/losses.md
+      - Metrics: api/metrics.md
   - Research: research.md
 
 markdown_extensions:

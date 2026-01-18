@@ -350,6 +350,65 @@ class OrdinalObjective:
         probs = self.predict_proba(y_pred)
         return np.argmax(probs, axis=1)
 
+    # =========================================================================
+    # Metric Properties
+    # =========================================================================
+
+    @property
+    def qwk_metric(self) -> Any:
+        """
+        Get Quadratic Weighted Kappa metric for this ordinal objective.
+
+        The metric uses this objective's predict() method to transform
+        raw predictions to class labels.
+
+        Returns:
+            Metric object with .xgb_metric and .lgb_metric methods
+
+        Example:
+            >>> model = xgb.train(
+            ...     {'disable_default_eval_metric': 1},
+            ...     dtrain, obj=ordinal.xgb_objective,
+            ...     custom_metric=ordinal.qwk_metric.xgb_metric,
+            ...     evals=[(dtest, 'test')]
+            ... )
+        """
+        from jaxboost.metric.ordinal import qwk_metric
+        return qwk_metric(n_classes=self.n_classes, transform=self.predict)
+
+    @property
+    def mae_metric(self) -> Any:
+        """
+        Get Mean Absolute Error metric for this ordinal objective.
+
+        Returns:
+            Metric object with .xgb_metric and .lgb_metric methods
+        """
+        from jaxboost.metric.ordinal import ordinal_mae_metric
+        return ordinal_mae_metric(n_classes=self.n_classes, transform=self.predict)
+
+    @property
+    def accuracy_metric(self) -> Any:
+        """
+        Get exact accuracy metric for this ordinal objective.
+
+        Returns:
+            Metric object with .xgb_metric and .lgb_metric methods
+        """
+        from jaxboost.metric.ordinal import ordinal_accuracy_metric
+        return ordinal_accuracy_metric(n_classes=self.n_classes, transform=self.predict)
+
+    @property
+    def adjacent_accuracy_metric(self) -> Any:
+        """
+        Get adjacent accuracy (within ±1) metric for this ordinal objective.
+
+        Returns:
+            Metric object with .xgb_metric and .lgb_metric methods
+        """
+        from jaxboost.metric.ordinal import adjacent_accuracy_metric
+        return adjacent_accuracy_metric(n_classes=self.n_classes, transform=self.predict)
+
     def __repr__(self) -> str:
         thresh_str = "initialized" if self._thresholds is not None else "not set"
         return f"OrdinalObjective(n_classes={self.n_classes}, link='{self.link}', thresholds={thresh_str})"

@@ -103,6 +103,34 @@ Objectives for classification with more than two classes.
 
 ---
 
+## Ordinal Regression
+
+Objectives for ordered categorical outcomes (ratings, grades, severity levels).
+
+### Cumulative Link Models
+
+::: jaxboost.objective.ordinal_logit
+
+::: jaxboost.objective.ordinal_probit
+
+### QWK-Aligned
+
+::: jaxboost.objective.qwk_ordinal
+
+::: jaxboost.objective.squared_cdf_ordinal
+
+::: jaxboost.objective.hybrid_ordinal
+
+### SLACE Paper (AAAI 2025)
+
+::: jaxboost.objective.slace_objective
+
+::: jaxboost.objective.sord_objective
+
+::: jaxboost.objective.oll_objective
+
+---
+
 ## Survival Analysis
 
 Objectives for time-to-event modeling.

@@ -94,15 +94,30 @@ pip install jaxboost
 | **Regression** | `mse`, `huber`, `quantile`, `tweedie`, `asymmetric`, `log_cosh`, `pseudo_huber`, `mae_smooth`, `poisson`, `gamma` |
 | **Binary Classification** | `focal_loss`, `binary_crossentropy`, `weighted_binary_crossentropy`, `hinge_loss` |
 | **Multi-class** | `softmax_cross_entropy`, `focal_multiclass`, `label_smoothing`, `class_balanced` |
-| **Ordinal Regression** | `ordinal_regression`, `qwk_ordinal`, `squared_cdf_ordinal`, `hybrid_ordinal` |
+| **Ordinal Regression** | `ordinal_logit`, `ordinal_probit`, `qwk_ordinal`, `squared_cdf_ordinal`, `hybrid_ordinal`, `slace_objective` |
 | **Survival** | `aft`, `weibull_aft` |
-| **Multi-task** | `multi_task_regression`, `multi_task_classification`, `multi_task_huber`, `multi_task_quantile` |
+| **Multi-task** | `multi_task_regression`, `multi_task_classification`, `multi_task_huber`, `multi_task_quantile`, `MaskedMultiTaskObjective` |
 | **Uncertainty** | `gaussian_nll`, `laplace_nll` |
+
+---
+
+## Benchmark Results
+
+JAXBoost excels when XGBoost/LightGBM have no native solution:
+
+| Problem | Improvement |
+|---------|-------------|
+| **Bounded Regression** [0,1] | 9.5% better MSE |
+| **Ordinal Regression** | Proper probabilistic outputs |
+| **Multi-task + Missing Labels** | Handles sparse labels |
+
+📊 [Full benchmark details →](benchmarks.md)
 
 ---
 
 ## Next Steps
 
 - **[Quick Start Guide](getting-started/quickstart.md)** — Get up and running in minutes
+- **[Benchmarks](benchmarks.md)** — Performance comparisons
 - **[API Reference](api/index.md)** — Detailed documentation for all objectives
 - **[Research Notes](research.md)** — Archived research on differentiable trees

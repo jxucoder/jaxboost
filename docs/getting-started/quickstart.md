@@ -160,14 +160,17 @@ model = xgb.train(
 For ordered categorical outcomes (ratings, grades, severity levels):
 
 ```python
-from jaxboost import ordinal_regression, qwk_ordinal
+from jaxboost import ordinal_logit, qwk_ordinal
 
 # Wine quality: 6 ordered classes (3-8 mapped to 0-5)
-ordinal = ordinal_regression(n_classes=6, link='probit')
+ordinal = ordinal_logit(n_classes=6)
 ordinal.init_thresholds_from_data(y_train)
 
-# Train with custom objective
+# Train with XGBoost
 model = xgb.train(params, dtrain, num_boost_round=100, obj=ordinal.xgb_objective)
+
+# Or LightGBM
+model = lgb.train(params, train_data, num_boost_round=100, fobj=ordinal.lgb_objective)
 
 # Get predictions
 latent = model.predict(dtest)
@@ -229,9 +232,9 @@ variance = np.exp(preds[:, 1])  # log-variance → variance
 | **Regression** | `mse`, `huber`, `quantile`, `tweedie`, `asymmetric`, `log_cosh`, `pseudo_huber`, `mae_smooth`, `poisson`, `gamma` |
 | **Binary Classification** | `focal_loss`, `binary_crossentropy`, `weighted_binary_crossentropy`, `hinge_loss` |
 | **Multi-class** | `softmax_cross_entropy`, `focal_multiclass`, `label_smoothing`, `class_balanced` |
-| **Ordinal Regression** | `ordinal_regression`, `qwk_ordinal`, `squared_cdf_ordinal`, `hybrid_ordinal` |
+| **Ordinal Regression** | `ordinal_logit`, `ordinal_probit`, `qwk_ordinal`, `squared_cdf_ordinal`, `hybrid_ordinal`, `slace_objective` |
 | **Survival** | `aft`, `weibull_aft` |
-| **Multi-task** | `multi_task_regression`, `multi_task_classification`, `multi_task_huber`, `multi_task_quantile` |
+| **Multi-task** | `multi_task_regression`, `multi_task_classification`, `multi_task_huber`, `multi_task_quantile`, `MaskedMultiTaskObjective` |
 | **Uncertainty** | `gaussian_nll`, `laplace_nll` |
 
 See the [API Reference](../api/losses.md) for detailed documentation of each objective.
@@ -240,5 +243,6 @@ See the [API Reference](../api/losses.md) for detailed documentation of each obj
 
 ## Next Steps
 
+- **[Benchmarks](../benchmarks.md)** — Performance comparisons showing JAXBoost advantages
 - **[API Reference](../api/index.md)** — Full documentation
 - **[Research Notes](../research.md)** — Archived research on differentiable trees

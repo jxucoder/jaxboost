@@ -326,6 +326,58 @@ class AutoObjective:
         new_instance._default_kwargs = {**self._default_kwargs, **kwargs}
         return new_instance
 
+    def get_sklearn_objective(
+        self, **kwargs: Any
+    ) -> Callable[
+        [NDArray[np.floating[Any]], NDArray[np.floating[Any]]],
+        tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]],
+    ]:
+        """
+        Get a scikit-learn compatible objective function for XGBClassifier/XGBRegressor.
+
+        The sklearn interface expects (labels, predt) -> (grad, hess) instead of
+        (predt, dtrain) -> (grad, hess).
+
+        Args:
+            **kwargs: Parameters to pass to the loss function
+
+        Returns:
+            Sklearn-compatible objective: (labels, predt) -> (grad, hess)
+
+        Example:
+            >>> from xgboost import XGBClassifier
+            >>> clf = XGBClassifier(objective=focal_loss.sklearn_objective)
+            >>> clf.fit(X_train, y_train)
+        """
+
+        def objective(
+            labels: NDArray[np.floating[Any]], predt: NDArray[np.floating[Any]]
+        ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
+            return self.grad_hess(predt, labels, **kwargs)
+
+        objective.__name__ = f"{self._name}_sklearn_objective"
+        return objective
+
+    @property
+    def sklearn_objective(
+        self,
+    ) -> Callable[
+        [NDArray[np.floating[Any]], NDArray[np.floating[Any]]],
+        tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]],
+    ]:
+        """
+        Sklearn-compatible objective for XGBClassifier/XGBRegressor.
+
+        Returns:
+            Sklearn objective function: (labels, predt) -> (grad, hess)
+
+        Example:
+            >>> from xgboost import XGBClassifier
+            >>> clf = XGBClassifier(objective=focal_loss.sklearn_objective)
+            >>> clf.fit(X_train, y_train)
+        """
+        return self.get_sklearn_objective(**self._default_kwargs)
+
     def __repr__(self) -> str:
         params = f", params={self._default_kwargs}" if self._default_kwargs else ""
         return f"AutoObjective({self._name}{params})"
