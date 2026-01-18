@@ -94,6 +94,7 @@ pip install jaxboost
 | **Regression** | `mse`, `huber`, `quantile`, `tweedie`, `asymmetric`, `log_cosh`, `pseudo_huber`, `mae_smooth`, `poisson`, `gamma` |
 | **Binary Classification** | `focal_loss`, `binary_crossentropy`, `weighted_binary_crossentropy`, `hinge_loss` |
 | **Multi-class** | `softmax_cross_entropy`, `focal_multiclass`, `label_smoothing`, `class_balanced` |
+| **Ordinal Regression** | `ordinal_regression`, `qwk_ordinal`, `squared_cdf_ordinal`, `hybrid_ordinal` |
 | **Survival** | `aft`, `weibull_aft` |
 | **Multi-task** | `multi_task_regression`, `multi_task_classification`, `multi_task_huber`, `multi_task_quantile` |
 | **Uncertainty** | `gaussian_nll`, `laplace_nll` |
