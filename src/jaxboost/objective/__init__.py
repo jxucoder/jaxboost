@@ -74,6 +74,26 @@ from jaxboost.objective.regression import (
     tweedie,
 )
 
+# Ordinal regression objectives
+from jaxboost.objective.ordinal import (
+    OrdinalObjective,
+    QWKOrdinalObjective,
+    SquaredCDFObjective,
+    hybrid_ordinal,
+    ordinal_logit,
+    ordinal_probit,
+    ordinal_regression,
+    qwk_ordinal,
+    squared_cdf_ordinal,
+    # SLACE paper objectives (AAAI 2025)
+    SORDObjective,
+    OLLObjective,
+    SLACEObjective,
+    sord_objective,
+    oll_objective,
+    slace_objective,
+)
+
 # Survival analysis objectives
 from jaxboost.objective.survival import (
     aft,
@@ -109,6 +129,23 @@ __all__ = [
     "focal_multiclass",
     "label_smoothing",
     "class_balanced",
+    # Ordinal regression
+    "OrdinalObjective",
+    "QWKOrdinalObjective",
+    "SquaredCDFObjective",
+    "ordinal_regression",
+    "ordinal_probit",
+    "ordinal_logit",
+    "qwk_ordinal",
+    "squared_cdf_ordinal",
+    "hybrid_ordinal",
+    # SLACE paper objectives
+    "SORDObjective",
+    "OLLObjective",
+    "SLACEObjective",
+    "sord_objective",
+    "oll_objective",
+    "slace_objective",
     # Survival
     "aft",
     "weibull_aft",

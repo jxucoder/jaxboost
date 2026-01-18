@@ -206,3 +206,9 @@ __marimo__/
 
 # Local research notes (do not commit)
 research_notes/
+
+# Example data
+data/
+
+# External repos (use scripts/setup_repos.sh to clone)
+repos/
