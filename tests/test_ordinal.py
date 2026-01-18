@@ -779,17 +779,17 @@ class TestSLACE:
         # Distances to 1: |0-1|=1, |1-1|=0, |2-1|=1
         # D[1][i,j] = 1 if dist(j,1) <= dist(i,1)
 
-        D1 = obj._dom_matrices[1]
+        d1 = obj._dom_matrices[1]
 
         # Row 0 (class 0, dist 1): dominated by 1 (dist 0), 0 (dist 1), 2 (dist 1)
-        assert D1[0, 1] == 1  # 1 dominates 0
-        assert D1[0, 0] == 1  # 0 dominates 0
-        assert D1[0, 2] == 1  # 2 dominates 0
+        assert d1[0, 1] == 1  # 1 dominates 0
+        assert d1[0, 0] == 1  # 0 dominates 0
+        assert d1[0, 2] == 1  # 2 dominates 0
 
         # Row 1 (class 1, dist 0): dominated only by 1 (dist 0)
-        assert D1[1, 1] == 1
-        assert D1[1, 0] == 0
-        assert D1[1, 2] == 0
+        assert d1[1, 1] == 1
+        assert d1[1, 0] == 0
+        assert d1[1, 2] == 0
 
     def test_gradient_shape(self, ordinal_logits_data_6):
         """Test gradient output shape."""
