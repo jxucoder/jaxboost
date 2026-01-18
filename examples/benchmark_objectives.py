@@ -13,7 +13,6 @@ Requirements:
 import time
 from functools import wraps
 
-import jax
 import jax.numpy as jnp
 import numpy as np
 from sklearn.datasets import make_classification, make_regression
@@ -29,7 +28,6 @@ from jaxboost.objective import (
     focal_loss,
     huber,
     mse,
-    quantile,
 )
 
 
@@ -46,9 +44,11 @@ def timer(func):
     return wrapper
 
 
+
 # =============================================================================
 # Manual Implementations for Comparison
 # =============================================================================
+
 
 
 def manual_mse_grad_hess(y_pred, y_true):
@@ -97,6 +97,7 @@ def manual_focal_grad_hess(y_pred, y_true, gamma=2.0, alpha=0.25):
 # =============================================================================
 # Benchmark Functions
 # =============================================================================
+
 
 
 def benchmark_gradient_speed(n_samples_list=[1000, 10000, 100000, 500000]):

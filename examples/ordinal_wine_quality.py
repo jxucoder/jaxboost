@@ -23,6 +23,7 @@ Usage:
     JAX_PLATFORMS=cpu python examples/ordinal_wine_quality.py
 """
 import os
+
 os.environ.setdefault("JAX_PLATFORMS", "cpu")
 
 import time
@@ -41,8 +42,7 @@ try:
 except ImportError:
     raise ImportError("Please install xgboost: pip install xgboost")
 
-from jaxboost.objective import hybrid_ordinal, ordinal_logit, qwk_ordinal, squared_cdf_ordinal
-
+from jaxboost.objective import ordinal_logit, qwk_ordinal, squared_cdf_ordinal
 
 # =============================================================================
 # OptimizedRounder (from Kaggle 1st Place Solution)
@@ -212,14 +212,14 @@ def get_tail_recall(y_true: np.ndarray, y_pred: np.ndarray) -> tuple[float, floa
     cm = confusion_matrix(y_true, y_pred)
     # Handle cases where some classes might be missing in y_true/y_pred interaction
     # (though y_true definitely has them if stratified split worked)
-    
+
     # Recall = TP / (TP + FN)
     with np.errstate(divide='ignore', invalid='ignore'):
         per_class_recall = np.diag(cm) / cm.sum(axis=1)
-    
+
     # Fill NaNs (if no true samples for a class) with 0
     per_class_recall = np.nan_to_num(per_class_recall)
-    
+
     # Return (First Class Recall, Last Class Recall)
     # For Wine: Class 0 (Quality 3) and Class 6 (Quality 9)
     if len(per_class_recall) >= 2:
@@ -356,13 +356,13 @@ def run_benchmark(
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=seed, stratify=y
         )
-        
+
         def evaluate_model(y_p, name):
             score = qwk(y_test, y_p)
             tail_l, tail_r = get_tail_recall(y_test, y_p)
             results.append({
-                "Model": name, 
-                "Seed": seed, 
+                "Model": name,
+                "Seed": seed,
                 "QWK": score,
                 "Tail_L_Recall": tail_l,
                 "Tail_R_Recall": tail_r
@@ -411,15 +411,15 @@ def print_summary(results: pd.DataFrame) -> None:
 
     summary = results.groupby("Model")[["QWK", "Tail_L_Recall", "Tail_R_Recall"]].agg(["mean", "std"]).round(4)
     summary = summary.sort_values(("QWK", "mean"), ascending=False)
-    
+
     # Clean column names
     summary.columns = [f"{c[0]}_{c[1]}" for c in summary.columns]
-    
+
     print("\n" + summary.to_string())
 
     best_model = summary.index[0]
     best_qwk = summary.loc[best_model, "QWK_mean"]
-    
+
     print("\n" + "-" * 80)
     print(f"Best QWK: {best_model} (QWK = {best_qwk:.4f})")
     print("-" * 80)

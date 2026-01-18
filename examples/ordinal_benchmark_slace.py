@@ -40,9 +40,6 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import LabelEncoder
 
 from jaxboost.objective import (
-    OLLObjective,
-    SLACEObjective,
-    SORDObjective,
     oll_objective,
     ordinal_logit,
     slace_objective,
