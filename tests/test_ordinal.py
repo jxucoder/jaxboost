@@ -4,15 +4,27 @@ Tests for ordinal regression objective functions.
 Tests the Cumulative Link Model implementation with probit and logit links.
 """
 
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
 from jaxboost.objective import (
+    OLLObjective,
     OrdinalObjective,
+    SLACEObjective,
+    SORDObjective,
+    SquaredCDFObjective,
+    hybrid_ordinal,
+    oll_objective,
     ordinal_logit,
     ordinal_probit,
     ordinal_regression,
+    qwk_ordinal,
+    slace_objective,
+    sord_objective,
+    squared_cdf_ordinal,
 )
+from jaxboost.objective.ordinal import QWKOrdinalObjective
 
 # =============================================================================
 # Test Fixtures
@@ -30,6 +42,19 @@ def ordinal_data_6():
     # Ordinal labels: 0, 1, 2, 3, 4, 5
     y_true = np.random.randint(0, n_classes, n_samples).astype(np.float64)
     return y_pred, y_true, n_classes
+
+
+@pytest.fixture
+def ordinal_logits_data_6():
+    """Generate sample ordinal data with 6 classes (logits)."""
+    np.random.seed(42)
+    n_samples = 50
+    n_classes = 6
+    # Logits: (n_samples, n_classes)
+    y_pred = np.random.randn(n_samples * n_classes).astype(np.float64)
+    # Ordinal labels: 0, 1, 2, 3, 4, 5
+    y_true = np.random.randint(0, n_classes, n_samples).astype(np.float64)
+    return y_pred, y_true, n_samples, n_classes
 
 
 @pytest.fixture
@@ -516,8 +541,6 @@ class TestQWKOrdinalObjective:
 
     def test_qwk_ordinal_creation(self):
         """Test creating QWKOrdinalObjective."""
-        from jaxboost.objective import QWKOrdinalObjective, qwk_ordinal
-
         obj = qwk_ordinal(n_classes=6)
         assert isinstance(obj, QWKOrdinalObjective)
         assert obj.n_classes == 6
@@ -526,16 +549,12 @@ class TestQWKOrdinalObjective:
 
     def test_hybrid_ordinal_creation(self):
         """Test creating hybrid ordinal objective."""
-        from jaxboost.objective import hybrid_ordinal
-
         obj = hybrid_ordinal(n_classes=6, nll_weight=0.7, eqe_weight=0.3)
         assert obj.alpha == 0.7
         assert obj.beta == 0.3
 
     def test_qwk_ordinal_gradient_shape(self, ordinal_data_6):
         """Test QWK ordinal gradient has correct shape."""
-        from jaxboost.objective import qwk_ordinal
-
         y_pred, y_true, n_classes = ordinal_data_6
         obj = qwk_ordinal(n_classes=n_classes)
         obj.init_thresholds_from_data(y_true.astype(np.int32))
@@ -545,8 +564,6 @@ class TestQWKOrdinalObjective:
 
     def test_qwk_ordinal_gradient_not_nan(self, ordinal_data_6):
         """Test QWK ordinal gradient is not NaN."""
-        from jaxboost.objective import qwk_ordinal
-
         y_pred, y_true, n_classes = ordinal_data_6
         obj = qwk_ordinal(n_classes=n_classes)
         obj.init_thresholds_from_data(y_true.astype(np.int32))
@@ -556,8 +573,6 @@ class TestQWKOrdinalObjective:
 
     def test_qwk_ordinal_hessian_positive(self, ordinal_data_6):
         """Test QWK ordinal Hessian is positive (for XGBoost stability)."""
-        from jaxboost.objective import qwk_ordinal
-
         y_pred, y_true, n_classes = ordinal_data_6
         obj = qwk_ordinal(n_classes=n_classes)
         obj.init_thresholds_from_data(y_true.astype(np.int32))
@@ -567,8 +582,6 @@ class TestQWKOrdinalObjective:
 
     def test_hybrid_loss_combines_nll_and_eqe(self, ordinal_data_6):
         """Test hybrid loss is between pure NLL and pure EQE."""
-        from jaxboost.objective import hybrid_ordinal, ordinal_logit, qwk_ordinal
-
         y_pred, y_true, n_classes = ordinal_data_6
 
         nll_obj = ordinal_logit(n_classes=n_classes)
@@ -588,8 +601,6 @@ class TestQWKOrdinalObjective:
 
     def test_qwk_ordinal_repr(self):
         """Test QWKOrdinalObjective string representation."""
-        from jaxboost.objective import qwk_ordinal
-
         obj = qwk_ordinal(n_classes=6)
         repr_str = repr(obj)
         assert "QWKOrdinalObjective" in repr_str
@@ -597,3 +608,207 @@ class TestQWKOrdinalObjective:
         assert "alpha=0.0" in repr_str
         assert "beta=1.0" in repr_str
         assert "gauss_newton=True" in repr_str
+
+
+# =============================================================================
+# Squared CDF (CRPS) Tests
+# =============================================================================
+
+
+class TestSquaredCDF:
+    """Tests for SquaredCDFObjective."""
+
+    def test_creation(self):
+        """Test creating SquaredCDFObjective."""
+        obj = squared_cdf_ordinal(n_classes=6)
+        assert isinstance(obj, SquaredCDFObjective)
+        assert obj.n_classes == 6
+        assert obj.link == "logit"  # default
+
+    def test_gradient_shape(self, ordinal_data_6):
+        """Test gradient output shape."""
+        y_pred, y_true, n_classes = ordinal_data_6
+        obj = squared_cdf_ordinal(n_classes=n_classes)
+        obj.init_thresholds_from_data(y_true)
+
+        grad = obj.gradient(y_pred, y_true)
+        assert grad.shape == y_pred.shape
+        assert grad.dtype == np.float64
+        assert not np.any(np.isnan(grad))
+
+    def test_hessian_positive(self, ordinal_data_6):
+        """Test Hessian is positive (Gauss-Newton approximation)."""
+        y_pred, y_true, n_classes = ordinal_data_6
+        obj = squared_cdf_ordinal(n_classes=n_classes)
+        obj.init_thresholds_from_data(y_true)
+
+        hess = obj.hessian(y_pred, y_true)
+        assert np.all(hess > 0)
+
+    def test_probit_link(self, ordinal_data_6):
+        """Test with probit link."""
+        y_pred, y_true, n_classes = ordinal_data_6
+        obj = squared_cdf_ordinal(n_classes=n_classes, link="probit")
+        obj.init_thresholds_from_data(y_true)
+
+        grad = obj.gradient(y_pred, y_true)
+        assert not np.any(np.isnan(grad))
+
+
+# =============================================================================
+# SORD Tests
+# =============================================================================
+
+
+class TestSORD:
+    """Tests for SORDObjective."""
+
+    def test_creation(self):
+        """Test creating SORDObjective."""
+        obj = sord_objective(n_classes=6, alpha=2.0)
+        assert isinstance(obj, SORDObjective)
+        assert obj.n_classes == 6
+        assert obj.alpha == 2.0
+
+    def test_soft_targets(self):
+        """Test soft target generation."""
+        n_classes = 5
+        obj = sord_objective(n_classes=n_classes, alpha=1.0)
+
+        # Test for class 2
+        y_true = jnp.array(2)
+        targets = obj._soft_targets(y_true)
+
+        assert targets.shape == (n_classes,)
+        # Should peak at 2
+        assert np.argmax(targets) == 2
+        # Should be symmetric around 2 (1 and 3 equal, 0 and 4 equal)
+        np.testing.assert_allclose(targets[1], targets[3])
+        np.testing.assert_allclose(targets[0], targets[4])
+        # Should sum to 1
+        np.testing.assert_allclose(np.sum(targets), 1.0, atol=1e-5)
+
+    def test_gradient_shape(self, ordinal_logits_data_6):
+        """Test gradient output shape."""
+        y_pred, y_true, n_samples, n_classes = ordinal_logits_data_6
+        obj = sord_objective(n_classes=n_classes)
+
+        grad = obj.gradient(y_pred, y_true)
+        # Should be flattened for XGBoost
+        assert grad.shape == (n_samples, n_classes)
+        assert grad.dtype == np.float64
+        assert not np.any(np.isnan(grad))
+
+    def test_sklearn_objective(self, ordinal_logits_data_6):
+        """Test sklearn-compatible objective."""
+        y_pred, y_true, n_samples, n_classes = ordinal_logits_data_6
+        y_probs = np.abs(y_pred.reshape(n_samples, n_classes))
+        y_probs = y_probs / y_probs.sum(axis=1, keepdims=True)
+
+        obj = sord_objective(n_classes=n_classes)
+        sk_obj = obj.sklearn_objective
+
+        grad, hess = sk_obj(y_true, y_probs)
+        assert grad.shape == (n_samples, n_classes)
+        assert hess.shape == (n_samples, n_classes)
+
+
+# =============================================================================
+# OLL Tests
+# =============================================================================
+
+
+class TestOLL:
+    """Tests for OLLObjective."""
+
+    def test_creation(self):
+        """Test creating OLLObjective."""
+        obj = oll_objective(n_classes=6, alpha=1.5)
+        assert isinstance(obj, OLLObjective)
+        assert obj.n_classes == 6
+        assert obj.alpha == 1.5
+
+    def test_gradient_shape(self, ordinal_logits_data_6):
+        """Test gradient output shape."""
+        y_pred, y_true, n_samples, n_classes = ordinal_logits_data_6
+        obj = oll_objective(n_classes=n_classes)
+
+        grad = obj.gradient(y_pred, y_true)
+        assert grad.shape == (n_samples, n_classes)
+        assert not np.any(np.isnan(grad))
+
+    def test_distance_weighting(self):
+        """Test that errors further away are penalized more."""
+        n_classes = 5
+        obj = oll_objective(n_classes=n_classes, alpha=2.0)
+
+        # Single sample, true class 2
+        y_true = np.array([2])
+
+        # Pred A: high prob on 1 (dist 1)
+        logits_a = np.array([-10, 10, -10, -10, -10]).reshape(1, 5)
+        # Pred B: high prob on 0 (dist 2)
+        logits_b = np.array([10, -10, -10, -10, -10]).reshape(1, 5)
+
+        loss_a = obj.loss(logits_a, y_true)
+        loss_b = obj.loss(logits_b, y_true)
+
+        # Dist 2 error should have higher loss than Dist 1 error
+        assert loss_b > loss_a
+
+
+# =============================================================================
+# SLACE Tests
+# =============================================================================
+
+
+class TestSLACE:
+    """Tests for SLACEObjective."""
+
+    def test_creation(self):
+        """Test creating SLACEObjective."""
+        obj = slace_objective(n_classes=6)
+        assert isinstance(obj, SLACEObjective)
+        assert obj.n_classes == 6
+
+    def test_dominance_matrices(self):
+        """Test dominance matrix construction."""
+        obj = slace_objective(n_classes=3)
+        # Check dominance matrix for y=1 (middle)
+        # Classes: 0, 1, 2
+        # Distances to 1: |0-1|=1, |1-1|=0, |2-1|=1
+        # D[1][i,j] = 1 if dist(j,1) <= dist(i,1)
+
+        d1 = obj._dom_matrices[1]
+
+        # Row 0 (class 0, dist 1): dominated by 1 (dist 0), 0 (dist 1), 2 (dist 1)
+        assert d1[0, 1] == 1  # 1 dominates 0
+        assert d1[0, 0] == 1  # 0 dominates 0
+        assert d1[0, 2] == 1  # 2 dominates 0
+
+        # Row 1 (class 1, dist 0): dominated only by 1 (dist 0)
+        assert d1[1, 1] == 1
+        assert d1[1, 0] == 0
+        assert d1[1, 2] == 0
+
+    def test_gradient_shape(self, ordinal_logits_data_6):
+        """Test gradient output shape."""
+        y_pred, y_true, n_samples, n_classes = ordinal_logits_data_6
+        obj = slace_objective(n_classes=n_classes)
+
+        grad = obj.gradient(y_pred, y_true)
+        assert grad.shape == (n_samples, n_classes)
+        assert not np.any(np.isnan(grad))
+
+    def test_sklearn_objective(self, ordinal_logits_data_6):
+        """Test sklearn-compatible objective."""
+        y_pred, y_true, n_samples, n_classes = ordinal_logits_data_6
+        y_probs = np.abs(y_pred.reshape(n_samples, n_classes))
+        y_probs = y_probs / y_probs.sum(axis=1, keepdims=True)
+
+        obj = slace_objective(n_classes=n_classes)
+        sk_obj = obj.sklearn_objective
+
+        grad, hess = sk_obj(y_true, y_probs)
+        assert grad.shape == (n_samples, n_classes)
+        assert hess.shape == (n_samples, n_classes)
