@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="JAXBoost" width="300">
+  <img src="assets/logo.svg" alt="JAXBoost" width="300">
 </p>
 
 <h2 align="center">JAX Autodiff for XGBoost/LightGBM Objectives</h2>

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="jaxboost" width="300">
+  <img src="assets/logo.svg" alt="JAXBoost" width="300">
 </p>
 
 [![Tests](https://github.com/jxucoder/jaxboost/actions/workflows/tests.yml/badge.svg)](https://github.com/jxucoder/jaxboost/actions/workflows/tests.yml)
