@@ -155,6 +155,36 @@ model = xgb.train(
 
 ---
 
+## Ordinal Regression
+
+For ordered categorical outcomes (ratings, grades, severity levels):
+
+```python
+from jaxboost import ordinal_regression, qwk_ordinal
+
+# Wine quality: 6 ordered classes (3-8 mapped to 0-5)
+ordinal = ordinal_regression(n_classes=6, link='probit')
+ordinal.init_thresholds_from_data(y_train)
+
+# Train with custom objective
+model = xgb.train(params, dtrain, num_boost_round=100, obj=ordinal.xgb_objective)
+
+# Get predictions
+latent = model.predict(dtest)
+probs = ordinal.predict_proba(latent)  # Class probabilities
+classes = ordinal.predict(latent)       # Predicted classes
+```
+
+!!! tip "Why Ordinal Regression?"
+    Standard approaches lose information:
+    
+    - **Regression** assumes equal intervals (3→4 same as 7→8)
+    - **Multi-class** ignores ordering entirely
+    
+    Ordinal regression learns proper class thresholds.
+
+---
+
 ## Survival Analysis
 
 Built-in objectives for time-to-event modeling:
@@ -199,6 +229,7 @@ variance = np.exp(preds[:, 1])  # log-variance → variance
 | **Regression** | `mse`, `huber`, `quantile`, `tweedie`, `asymmetric`, `log_cosh`, `pseudo_huber`, `mae_smooth`, `poisson`, `gamma` |
 | **Binary Classification** | `focal_loss`, `binary_crossentropy`, `weighted_binary_crossentropy`, `hinge_loss` |
 | **Multi-class** | `softmax_cross_entropy`, `focal_multiclass`, `label_smoothing`, `class_balanced` |
+| **Ordinal Regression** | `ordinal_regression`, `qwk_ordinal`, `squared_cdf_ordinal`, `hybrid_ordinal` |
 | **Survival** | `aft`, `weibull_aft` |
 | **Multi-task** | `multi_task_regression`, `multi_task_classification`, `multi_task_huber`, `multi_task_quantile` |
 | **Uncertainty** | `gaussian_nll`, `laplace_nll` |

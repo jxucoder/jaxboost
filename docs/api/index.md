@@ -89,6 +89,15 @@ Welcome to the JAXBoost API documentation.
 | [`label_smoothing`](losses.md#jaxboost.objective.label_smoothing) | Label smoothing regularization |
 | [`class_balanced`](losses.md#jaxboost.objective.class_balanced) | Class-balanced loss |
 
+### Ordinal Regression
+
+| Objective | Description |
+|-----------|-------------|
+| [`ordinal_regression`](losses.md#jaxboost.objective.ordinal_regression) | Cumulative Link Model (probit/logit) |
+| [`qwk_ordinal`](losses.md#jaxboost.objective.qwk_ordinal) | QWK-aligned Expected Quadratic Error |
+| [`squared_cdf_ordinal`](losses.md#jaxboost.objective.squared_cdf_ordinal) | CRPS / Ranked Probability Score |
+| [`hybrid_ordinal`](losses.md#jaxboost.objective.hybrid_ordinal) | NLL + EQE hybrid |
+
 ### Survival Analysis
 
 | Objective | Description |
@@ -123,6 +132,7 @@ jaxboost/
     ├── binary.py        # Binary classification
     ├── regression.py    # Regression objectives
     ├── multiclass.py    # Multi-class classification
+    ├── ordinal.py       # Ordinal regression (CLM)
     ├── multi_output.py  # Multi-output (uncertainty)
     ├── multi_task.py    # Multi-task learning
     └── survival.py      # Survival analysis

@@ -95,6 +95,14 @@ model = lgb.train(params, train_data, num_boost_round=100, fobj=huber.lgb_object
 | `aft` | Accelerated failure time (log-normal) |
 | `weibull_aft` | Weibull AFT model |
 
+### Ordinal Regression
+| Objective | Description |
+|-----------|-------------|
+| `ordinal_regression` | Cumulative Link Model (probit/logit) |
+| `qwk_ordinal` | QWK-aligned Expected Quadratic Error |
+| `squared_cdf_ordinal` | CRPS / Ranked Probability Score |
+| `hybrid_ordinal` | NLL + EQE hybrid |
+
 ### Multi-task Learning
 | Objective | Description |
 |-----------|-------------|
@@ -109,6 +117,24 @@ model = lgb.train(params, train_data, num_boost_round=100, fobj=huber.lgb_object
 |-----------|-------------|
 | `gaussian_nll` | Predict mean + variance |
 | `laplace_nll` | Predict median + scale |
+
+## Ordinal Regression
+
+XGBoost has no native ordinal objective. JAXBoost implements proper [Cumulative Link Models](https://en.wikipedia.org/wiki/Ordered_logit):
+
+```python
+from jaxboost import ordinal_regression, qwk_ordinal
+
+# Wine quality: 6 ordered classes (3-8 mapped to 0-5)
+ordinal = ordinal_regression(n_classes=6, link='probit')
+ordinal.init_thresholds_from_data(y_train)
+
+model = xgb.train(params, dtrain, obj=ordinal.xgb_objective)
+
+# Get class probabilities
+probs = ordinal.predict_proba(model.predict(dtest))
+classes = ordinal.predict(model.predict(dtest))
+```
 
 ## Custom Objectives
 
