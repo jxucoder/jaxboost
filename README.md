@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="assets/logo.svg" alt="JAXBoost" width="300">
-</p>
+# JAXBoost
 
 [![Tests](https://github.com/jxucoder/jaxboost/actions/workflows/tests.yml/badge.svg)](https://github.com/jxucoder/jaxboost/actions/workflows/tests.yml)
 [![Lint](https://github.com/jxucoder/jaxboost/actions/workflows/lint.yml/badge.svg)](https://github.com/jxucoder/jaxboost/actions/workflows/lint.yml)
