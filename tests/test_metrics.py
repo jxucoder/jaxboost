@@ -7,27 +7,24 @@ import pytest
 
 from jaxboost.metric import (
     Metric,
-    make_metric,
-    # Ordinal
-    qwk_metric,
-    ordinal_mae_metric,
-    ordinal_accuracy_metric,
+    accuracy_metric,
     adjacent_accuracy_metric,
     # Classification
     auc_metric,
-    log_loss_metric,
-    accuracy_metric,
-    f1_metric,
-    precision_metric,
-    recall_metric,
-    # Regression
-    mse_metric,
-    rmse_metric,
-    mae_metric,
-    r2_metric,
     # Bounded
     bounded_mse_metric,
+    f1_metric,
+    log_loss_metric,
+    mae_metric,
+    make_metric,
+    # Regression
+    mse_metric,
+    ordinal_accuracy_metric,
+    ordinal_mae_metric,
     out_of_bounds_metric,
+    qwk_metric,
+    r2_metric,
+    rmse_metric,
 )
 
 
@@ -69,13 +66,14 @@ class TestMetricBase:
 
     def test_make_metric_decorator(self):
         """Test make_metric decorator."""
+
         @make_metric("my_mse", higher_is_better=False)
         def my_mse(y_true, y_pred):
             return np.mean((y_true - y_pred) ** 2)
 
         y_true = np.array([1, 2, 3])
         y_pred = np.array([1, 2, 4])
-        assert my_mse(y_true, y_pred) == pytest.approx(1/3)
+        assert my_mse(y_true, y_pred) == pytest.approx(1 / 3)
 
 
 class TestOrdinalMetrics:
@@ -98,7 +96,10 @@ class TestOrdinalMetrics:
 
     def test_qwk_with_transform(self):
         """Test QWK with custom transform."""
-        transform = lambda p: np.clip(np.round(p * 4), 0, 4).astype(int)
+
+        def transform(p):
+            return np.clip(np.round(p * 4), 0, 4).astype(int)
+
         metric = qwk_metric(n_classes=5, transform=transform)
         y_true = np.array([0, 1, 2, 3, 4])
         y_pred = np.array([0.0, 0.25, 0.5, 0.75, 1.0])

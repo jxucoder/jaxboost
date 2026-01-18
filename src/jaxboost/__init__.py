@@ -28,6 +28,8 @@ Available Objectives:
     - Multi-task: multi_task_regression, multi_task_classification
 """
 
+# Metrics module
+from jaxboost import metric
 from jaxboost._version import __version__
 
 # =============================================================================
@@ -89,11 +91,9 @@ from jaxboost.objective import (
     weighted_binary_crossentropy,
 )
 
-# Metrics module
-from jaxboost import metric
-
 __all__ = [
     "__version__",
+    "metric",
     # Core
     "AutoObjective",
     "auto_objective",

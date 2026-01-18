@@ -89,17 +89,13 @@ class OrdinalObjective:
         """Set fixed thresholds for the ordinal model."""
         thresholds = np.asarray(thresholds, dtype=np.float32)
         if len(thresholds) != self.n_classes - 1:
-            raise ValueError(
-                f"Expected {self.n_classes - 1} thresholds, got {len(thresholds)}"
-            )
+            raise ValueError(f"Expected {self.n_classes - 1} thresholds, got {len(thresholds)}")
         # Ensure thresholds are sorted
         if not np.all(np.diff(thresholds) > 0):
             raise ValueError("Thresholds must be strictly increasing")
         self._thresholds = jnp.asarray(thresholds, dtype=jnp.float32)
 
-    def init_thresholds_from_data(
-        self, y: NDArray[np.floating[Any]], eps: float = 0.01
-    ) -> None:
+    def init_thresholds_from_data(self, y: NDArray[np.floating[Any]], eps: float = 0.01) -> None:
         """
         Initialize thresholds from empirical class distribution.
 
@@ -148,11 +144,13 @@ class OrdinalObjective:
         """Get thresholds with large finite boundaries (avoid inf for autodiff)."""
         theta = self.thresholds
         # Use large but finite values instead of inf to avoid NaN in gradients
-        return jnp.concatenate([
-            jnp.array([-30.0]),  # Effectively -inf for CDF purposes
-            theta,
-            jnp.array([30.0]),   # Effectively +inf for CDF purposes
-        ])
+        return jnp.concatenate(
+            [
+                jnp.array([-30.0]),  # Effectively -inf for CDF purposes
+                theta,
+                jnp.array([30.0]),  # Effectively +inf for CDF purposes
+            ]
+        )
 
     def _class_probability(self, g: jax.Array, k: jax.Array) -> jax.Array:
         """
@@ -311,9 +309,7 @@ class OrdinalObjective:
         """XGBoost-compatible objective function."""
         return self.get_xgb_objective()
 
-    def predict_proba(
-        self, y_pred: NDArray[np.floating[Any]]
-    ) -> NDArray[np.floating[Any]]:
+    def predict_proba(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.floating[Any]]:
         """
         Convert latent predictions to class probabilities.
 
@@ -335,9 +331,7 @@ class OrdinalObjective:
         probs = jax.vmap(probs_single)(g)
         return np.asarray(probs, dtype=np.float64)
 
-    def predict(
-        self, y_pred: NDArray[np.floating[Any]]
-    ) -> NDArray[np.intp]:
+    def predict(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.intp]:
         """
         Convert latent predictions to class labels.
 
@@ -374,6 +368,7 @@ class OrdinalObjective:
             ... )
         """
         from jaxboost.metric.ordinal import qwk_metric
+
         return qwk_metric(n_classes=self.n_classes, transform=self.predict)
 
     @property
@@ -385,6 +380,7 @@ class OrdinalObjective:
             Metric object with .xgb_metric and .lgb_metric methods
         """
         from jaxboost.metric.ordinal import ordinal_mae_metric
+
         return ordinal_mae_metric(n_classes=self.n_classes, transform=self.predict)
 
     @property
@@ -396,6 +392,7 @@ class OrdinalObjective:
             Metric object with .xgb_metric and .lgb_metric methods
         """
         from jaxboost.metric.ordinal import ordinal_accuracy_metric
+
         return ordinal_accuracy_metric(n_classes=self.n_classes, transform=self.predict)
 
     @property
@@ -407,11 +404,15 @@ class OrdinalObjective:
             Metric object with .xgb_metric and .lgb_metric methods
         """
         from jaxboost.metric.ordinal import adjacent_accuracy_metric
+
         return adjacent_accuracy_metric(n_classes=self.n_classes, transform=self.predict)
 
     def __repr__(self) -> str:
         thresh_str = "initialized" if self._thresholds is not None else "not set"
-        return f"OrdinalObjective(n_classes={self.n_classes}, link='{self.link}', thresholds={thresh_str})"
+        return (
+            f"OrdinalObjective(n_classes={self.n_classes}, "
+            f"link='{self.link}', thresholds={thresh_str})"
+        )
 
 
 def ordinal_regression(
@@ -492,36 +493,36 @@ class SquaredCDFObjective(OrdinalObjective):
         # F(k) = P(Y <= k) = CDF(θ_{k+1} - g)
         # Note: theta_ext indices: 0:-inf, 1:θ_1, ..., K-1:θ_{K-1}, K:inf
         # We need P(Y<=k) for k=0..K-2 (last class K-1 always has P(Y<=K-1)=1, const)
-        
+
         # Calculate P(Y <= k) for k = 0 to K-2
-        #Corresponds to thresholds θ_1 to θ_{K-1}
+        # Corresponds to thresholds θ_1 to θ_{K-1}
         # indices 1 to K-1 in theta_ext
         thresholds_relevant = theta_ext[1:-1]
         pred_cdfs = self._cdf(thresholds_relevant - g)
-        
+
         # True CDFs: I(y <= k) for k = 0 to K-2
         class_indices = jnp.arange(self.n_classes - 1, dtype=jnp.float32)
         true_cdfs = (class_indices >= y).astype(jnp.float32)
-        
+
         return jnp.sum((pred_cdfs - true_cdfs) ** 2)
 
     def _grad_single(self, g: jax.Array, y: jax.Array) -> jax.Array:
         """Analytical gradient of Squared CDF Loss."""
         # Use JAX autodiff for simplicity and correctness
         return jax.grad(self._loss_single)(g, y)
-    
+
     def _hess_single(self, g: jax.Array, y: jax.Array) -> jax.Array:
         """Hessian of Squared CDF Loss."""
         if self.use_gauss_newton:
             # Gauss-Newton: H ≈ 2 * Σ (∂F/∂g)²
             theta_ext = self._get_extended_thresholds()
             thresholds_relevant = theta_ext[1:-1]
-            
+
             # ∂F/∂g = -pdf(θ - g)
             pdfs = self._pdf(thresholds_relevant - g)
-            grad_F = -pdfs
-            
-            return 2.0 * jnp.sum(grad_F ** 2)
+            grad_F = -pdfs  # noqa: N806
+
+            return 2.0 * jnp.sum(grad_F**2)
         else:
             # Full Hessian via autodiff
             return jax.grad(jax.grad(self._loss_single))(g, y)
@@ -544,7 +545,7 @@ class SquaredCDFObjective(OrdinalObjective):
         g = jnp.asarray(y_pred, dtype=jnp.float32)
         y = jnp.asarray(y_true, dtype=jnp.int32)
         hess = jax.vmap(self._hess_single)(g, y)
-        hess = jnp.maximum(hess, 1e-6) # XGBoost stability
+        hess = jnp.maximum(hess, 1e-6)  # XGBoost stability
         return np.asarray(hess, dtype=np.float64)
 
     def __repr__(self) -> str:
@@ -561,7 +562,7 @@ def squared_cdf_ordinal(
 ) -> SquaredCDFObjective:
     """
     Create a Squared CDF (CRPS) ordinal objective.
-    
+
     This minimizes the squared Earth Mover's Distance between distributions,
     often outperforming EQE/NLL for QWK optimization.
     """
@@ -618,7 +619,7 @@ class QWKOrdinalObjective(OrdinalObjective):
     ) -> None:
         super().__init__(n_classes=n_classes, link=link, thresholds=thresholds)
         self.alpha = alpha  # NLL weight
-        self.beta = beta    # EQE weight
+        self.beta = beta  # EQE weight
         self.use_gauss_newton = use_gauss_newton
 
         # Precompute class indices for expected score calculation
@@ -673,7 +674,7 @@ class QWKOrdinalObjective(OrdinalObjective):
         At optimum (residual=0), H_GN = H (true Hessian).
         """
         dy_hat_dg = jax.grad(self._expected_score)(g)
-        return 2.0 * dy_hat_dg ** 2
+        return 2.0 * dy_hat_dg**2
 
     def _loss_single(self, g: jax.Array, y: jax.Array) -> jax.Array:
         """
@@ -716,8 +717,7 @@ class QWKOrdinalObjective(OrdinalObjective):
         if self.alpha > 0:
             # NLL gradient from parent class
             nll_grad_fn = jax.grad(
-                lambda g_i, y_i: super(QWKOrdinalObjective, self)._loss_single(g_i, y_i),
-                argnums=0
+                lambda g_i, y_i: super(QWKOrdinalObjective, self)._loss_single(g_i, y_i), argnums=0
             )
             nll_grads = jax.vmap(nll_grad_fn)(g, y)
             grad = grad + self.alpha * nll_grads
@@ -747,8 +747,7 @@ class QWKOrdinalObjective(OrdinalObjective):
         if self.alpha > 0:
             # NLL Hessian from parent class (true Hessian, always positive for NLL)
             nll_grad_fn = jax.grad(
-                lambda g_i, y_i: super(QWKOrdinalObjective, self)._loss_single(g_i, y_i),
-                argnums=0
+                lambda g_i, y_i: super(QWKOrdinalObjective, self)._loss_single(g_i, y_i), argnums=0
             )
             nll_hess_fn = jax.grad(nll_grad_fn, argnums=0)
             nll_hess = jax.vmap(nll_hess_fn)(g, y)
@@ -806,9 +805,7 @@ def qwk_ordinal(
         >>> # Hybrid for stability
         >>> obj = qwk_ordinal(n_classes=7, alpha=0.5, beta=0.5)
     """
-    return QWKOrdinalObjective(
-        n_classes=n_classes, link=link, alpha=alpha, beta=beta
-    )
+    return QWKOrdinalObjective(n_classes=n_classes, link=link, alpha=alpha, beta=beta)
 
 
 def hybrid_ordinal(
@@ -835,9 +832,7 @@ def hybrid_ordinal(
     Returns:
         QWKOrdinalObjective instance
     """
-    return QWKOrdinalObjective(
-        n_classes=n_classes, link=link, alpha=nll_weight, beta=eqe_weight
-    )
+    return QWKOrdinalObjective(n_classes=n_classes, link=link, alpha=nll_weight, beta=eqe_weight)
 
 
 # =============================================================================
@@ -922,7 +917,7 @@ class SORDObjective:
         def hess_diag_single(logits_i: jax.Array, y_i: jax.Array) -> jax.Array:
             grad_fn = jax.grad(self._loss_single, argnums=0)
             hess_fn = jax.jacfwd(grad_fn, argnums=0)
-            H = hess_fn(logits_i, y_i)
+            H = hess_fn(logits_i, y_i)  # noqa: N806
             return jnp.diag(H)
 
         hess = jax.vmap(hess_diag_single)(logits, y)
@@ -948,6 +943,7 @@ class SORDObjective:
             y_true = dtrain.get_label()
             sample_weight = dtrain.get_weight()
             return self.grad_hess(y_pred, y_true, sample_weight)
+
         objective.__name__ = "sord_xgb_objective"
         return objective
 
@@ -961,7 +957,6 @@ class SORDObjective:
         probs: NDArray[np.floating[Any]],
     ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
         """Compute gradient/hessian w.r.t. softmax probabilities (for sklearn API)."""
-        n_samples = len(y_true)
         probs_jax = jnp.asarray(probs, dtype=jnp.float32)
         y = jnp.asarray(y_true, dtype=jnp.int32)
 
@@ -979,10 +974,12 @@ class SORDObjective:
     @property
     def sklearn_objective(self) -> Callable:
         """Objective for XGBClassifier (receives softmax probs, not logits)."""
+
         def objective(y_true, probs):
             grad, hess = self._probs_grad_hess(y_true, probs)
             # XGBoost 2.1+ requires (n_samples, n_classes) shape
             return grad, hess
+
         return objective
 
     def predict(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.intp]:
@@ -1024,7 +1021,7 @@ class OLLObjective:
         """OLL loss for a single sample."""
         probs = jax.nn.softmax(logits)
         distances = jnp.abs(self._class_indices - y.astype(jnp.float32))
-        weights = distances ** self.alpha
+        weights = distances**self.alpha
         # Penalize probabilities on wrong classes, weighted by distance
         return -jnp.sum(weights * jnp.log(jnp.clip(1 - probs, 1e-10, 1.0)))
 
@@ -1063,7 +1060,7 @@ class OLLObjective:
         def hess_diag_single(logits_i: jax.Array, y_i: jax.Array) -> jax.Array:
             grad_fn = jax.grad(self._loss_single, argnums=0)
             hess_fn = jax.jacfwd(grad_fn, argnums=0)
-            H = hess_fn(logits_i, y_i)
+            H = hess_fn(logits_i, y_i)  # noqa: N806
             return jnp.diag(H)
 
         hess = jax.vmap(hess_diag_single)(logits, y)
@@ -1089,6 +1086,7 @@ class OLLObjective:
             y_true = dtrain.get_label()
             sample_weight = dtrain.get_weight()
             return self.grad_hess(y_pred, y_true, sample_weight)
+
         objective.__name__ = "oll_xgb_objective"
         return objective
 
@@ -1108,7 +1106,7 @@ class OLLObjective:
         def loss_single_probs(p: jax.Array, y_i: jax.Array) -> jax.Array:
             """OLL loss for a single sample given probabilities."""
             distances = jnp.abs(self._class_indices - y_i.astype(jnp.float32))
-            weights = distances ** self.alpha
+            weights = distances**self.alpha
             return -jnp.sum(weights * jnp.log(jnp.clip(1 - p, 1e-10, 1.0)))
 
         grad_fn = jax.grad(loss_single_probs, argnums=0)
@@ -1119,9 +1117,11 @@ class OLLObjective:
     @property
     def sklearn_objective(self) -> Callable:
         """Objective for XGBClassifier (receives softmax probs, not logits)."""
+
         def objective(y_true, probs):
             grad, hess = self._probs_grad_hess(y_true, probs)
             return grad, hess
+
         return objective
 
     def predict(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.intp]:
@@ -1169,10 +1169,10 @@ class SLACEObjective:
 
     def _build_dominance_matrices(self) -> jax.Array:
         """Build dominance matrices D[y] for each true class y."""
-        K = self.n_classes
+        K = self.n_classes  # noqa: N806
         matrices = []
         for y in range(K):
-            D = np.zeros((K, K), dtype=np.float32)
+            D = np.zeros((K, K), dtype=np.float32)  # noqa: N806
             for i in range(K):
                 for j in range(K):
                     dist_i = abs(i - y)
@@ -1193,7 +1193,7 @@ class SLACEObjective:
         targets = self._soft_targets(y)
 
         # Get dominance matrix for this true class
-        D = self._dom_matrices[y]
+        D = self._dom_matrices[y]  # noqa: N806
 
         # Accumulated probabilities
         acc_probs = D @ probs
@@ -1236,7 +1236,7 @@ class SLACEObjective:
         def hess_diag_single(logits_i: jax.Array, y_i: jax.Array) -> jax.Array:
             grad_fn = jax.grad(self._loss_single, argnums=0)
             hess_fn = jax.jacfwd(grad_fn, argnums=0)
-            H = hess_fn(logits_i, y_i)
+            H = hess_fn(logits_i, y_i)  # noqa: N806
             return jnp.diag(H)
 
         hess = jax.vmap(hess_diag_single)(logits, y)
@@ -1262,6 +1262,7 @@ class SLACEObjective:
             y_true = dtrain.get_label()
             sample_weight = dtrain.get_weight()
             return self.grad_hess(y_pred, y_true, sample_weight)
+
         objective.__name__ = "slace_xgb_objective"
         return objective
 
@@ -1281,7 +1282,7 @@ class SLACEObjective:
         def loss_single_probs(p: jax.Array, y_i: jax.Array) -> jax.Array:
             """SLACE loss for a single sample given probabilities."""
             targets = self._soft_targets(y_i)
-            D = self._dom_matrices[y_i]
+            D = self._dom_matrices[y_i]  # noqa: N806
             acc_probs = D @ p
             return -jnp.sum(targets * jnp.log(jnp.clip(acc_probs, 1e-10, 1.0)))
 
@@ -1293,9 +1294,11 @@ class SLACEObjective:
     @property
     def sklearn_objective(self) -> Callable:
         """Objective for XGBClassifier (receives softmax probs, not logits)."""
+
         def objective(y_true, probs):
             grad, hess = self._probs_grad_hess(y_true, probs)
             return grad, hess
+
         return objective
 
     def predict(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.intp]:
@@ -1321,4 +1324,3 @@ def oll_objective(n_classes: int, alpha: float = 1.0) -> OLLObjective:
 def slace_objective(n_classes: int, alpha: float = 1.0) -> SLACEObjective:
     """Create SLACE (Soft Labels Accumulating Cross Entropy) objective."""
     return SLACEObjective(n_classes=n_classes, alpha=alpha)
-

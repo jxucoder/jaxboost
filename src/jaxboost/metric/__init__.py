@@ -25,7 +25,7 @@ Quick Start:
 Important:
     When using custom objectives, always set `'disable_default_eval_metric': 1`
     in XGBoost params to suppress meaningless default metrics.
-    
+
     For LightGBM, set `'metric': 'None'` instead.
 """
 
@@ -33,33 +33,29 @@ from jaxboost.metric.base import (
     Metric,
     make_metric,
 )
-
-from jaxboost.metric.ordinal import (
-    qwk_metric,
-    ordinal_mae_metric,
-    ordinal_accuracy_metric,
-    adjacent_accuracy_metric,
-)
-
-from jaxboost.metric.classification import (
-    auc_metric,
-    log_loss_metric,
-    accuracy_metric,
-    f1_metric,
-    precision_metric,
-    recall_metric,
-)
-
-from jaxboost.metric.regression import (
-    mse_metric,
-    rmse_metric,
-    mae_metric,
-    r2_metric,
-)
-
 from jaxboost.metric.bounded import (
     bounded_mse_metric,
     out_of_bounds_metric,
+)
+from jaxboost.metric.classification import (
+    accuracy_metric,
+    auc_metric,
+    f1_metric,
+    log_loss_metric,
+    precision_metric,
+    recall_metric,
+)
+from jaxboost.metric.ordinal import (
+    adjacent_accuracy_metric,
+    ordinal_accuracy_metric,
+    ordinal_mae_metric,
+    qwk_metric,
+)
+from jaxboost.metric.regression import (
+    mae_metric,
+    mse_metric,
+    r2_metric,
+    rmse_metric,
 )
 
 __all__ = [

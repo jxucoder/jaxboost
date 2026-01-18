@@ -60,6 +60,26 @@ from jaxboost.objective.multiclass import (
     softmax_cross_entropy,
 )
 
+# Ordinal regression objectives
+from jaxboost.objective.ordinal import (
+    OLLObjective,
+    OrdinalObjective,
+    QWKOrdinalObjective,
+    SLACEObjective,
+    # SLACE paper objectives (AAAI 2025)
+    SORDObjective,
+    SquaredCDFObjective,
+    hybrid_ordinal,
+    oll_objective,
+    ordinal_logit,
+    ordinal_probit,
+    ordinal_regression,
+    qwk_ordinal,
+    slace_objective,
+    sord_objective,
+    squared_cdf_ordinal,
+)
+
 # Regression objectives
 from jaxboost.objective.regression import (
     asymmetric,
@@ -72,26 +92,6 @@ from jaxboost.objective.regression import (
     pseudo_huber,
     quantile,
     tweedie,
-)
-
-# Ordinal regression objectives
-from jaxboost.objective.ordinal import (
-    OrdinalObjective,
-    QWKOrdinalObjective,
-    SquaredCDFObjective,
-    hybrid_ordinal,
-    ordinal_logit,
-    ordinal_probit,
-    ordinal_regression,
-    qwk_ordinal,
-    squared_cdf_ordinal,
-    # SLACE paper objectives (AAAI 2025)
-    SORDObjective,
-    OLLObjective,
-    SLACEObjective,
-    sord_objective,
-    oll_objective,
-    slace_objective,
 )
 
 # Survival analysis objectives

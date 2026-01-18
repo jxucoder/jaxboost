@@ -14,7 +14,6 @@ from jaxboost.objective import (
     ordinal_regression,
 )
 
-
 # =============================================================================
 # Test Fixtures
 # =============================================================================
@@ -357,9 +356,7 @@ class TestSampleWeights:
         weights = np.random.rand(len(y_true))
 
         grad_unweighted, hess_unweighted = obj.grad_hess(y_pred, y_true)
-        grad_weighted, hess_weighted = obj.grad_hess(
-            y_pred, y_true, sample_weight=weights
-        )
+        grad_weighted, hess_weighted = obj.grad_hess(y_pred, y_true, sample_weight=weights)
 
         expected_grad = grad_unweighted * weights
         expected_hess = hess_unweighted * weights
@@ -600,4 +597,3 @@ class TestQWKOrdinalObjective:
         assert "alpha=0.0" in repr_str
         assert "beta=1.0" in repr_str
         assert "gauss_newton=True" in repr_str
-
