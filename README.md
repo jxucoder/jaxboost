@@ -71,6 +71,8 @@ model = lgb.train(params, train_data, num_boost_round=100, fobj=huber.lgb_object
 | `mae_smooth` | Smooth approximation of MAE |
 | `quantile(q)` | Quantile regression |
 | `asymmetric(alpha)` | Asymmetric squared error |
+| `poisson` | Poisson deviance (count data) |
+| `gamma` | Gamma deviance (positive continuous) |
 | `tweedie(p)` | Tweedie deviance |
 
 ### Binary Classification
@@ -98,10 +100,14 @@ model = lgb.train(params, train_data, num_boost_round=100, fobj=huber.lgb_object
 ### Ordinal Regression
 | Objective | Description |
 |-----------|-------------|
-| `ordinal_regression` | Cumulative Link Model (probit/logit) |
+| `ordinal_logit` | Cumulative Link Model (logit link) |
+| `ordinal_probit` | Cumulative Link Model (probit link) |
 | `qwk_ordinal` | QWK-aligned Expected Quadratic Error |
 | `squared_cdf_ordinal` | CRPS / Ranked Probability Score |
 | `hybrid_ordinal` | NLL + EQE hybrid |
+| `sord_objective` | SORD (Soft Ordinal) from SLACE paper |
+| `oll_objective` | OLL (Ordinal Log-Loss) from SLACE paper |
+| `slace_objective` | SLACE (AAAI 2025) |
 
 ### Multi-task Learning
 | Objective | Description |
@@ -120,21 +126,54 @@ model = lgb.train(params, train_data, num_boost_round=100, fobj=huber.lgb_object
 
 ## Ordinal Regression
 
-XGBoost has no native ordinal objective. JAXBoost implements proper [Cumulative Link Models](https://en.wikipedia.org/wiki/Ordered_logit):
+XGBoost/LightGBM have no native ordinal objective. JAXBoost implements proper [Cumulative Link Models](https://en.wikipedia.org/wiki/Ordered_logit):
 
 ```python
-from jaxboost import ordinal_regression, qwk_ordinal
+from jaxboost import ordinal_logit, qwk_ordinal
 
 # Wine quality: 6 ordered classes (3-8 mapped to 0-5)
-ordinal = ordinal_regression(n_classes=6, link='probit')
+ordinal = ordinal_logit(n_classes=6)
 ordinal.init_thresholds_from_data(y_train)
 
+# Works with XGBoost
 model = xgb.train(params, dtrain, obj=ordinal.xgb_objective)
+
+# Or LightGBM
+model = lgb.train(params, train_data, fobj=ordinal.lgb_objective)
 
 # Get class probabilities
 probs = ordinal.predict_proba(model.predict(dtest))
 classes = ordinal.predict(model.predict(dtest))
 ```
+
+## Evaluation Metrics
+
+When using custom objectives, use matching evaluation metrics:
+
+```python
+from jaxboost import ordinal_logit
+from jaxboost.metric import qwk_metric, mae_metric
+
+ordinal = ordinal_logit(n_classes=6)
+ordinal.init_thresholds_from_data(y_train)
+
+# Train with custom metric monitoring
+model = xgb.train(
+    {'disable_default_eval_metric': 1, 'max_depth': 4},  # Disable default metrics!
+    dtrain,
+    obj=ordinal.xgb_objective,
+    custom_metric=ordinal.qwk_metric.xgb_metric,  # Built-in QWK metric
+    evals=[(dtest, 'test')]
+)
+```
+
+### Available Metrics
+| Category | Metrics |
+|----------|---------|
+| **Ordinal** | `qwk_metric`, `ordinal_mae_metric`, `ordinal_accuracy_metric`, `adjacent_accuracy_metric` |
+| **Classification** | `auc_metric`, `f1_metric`, `accuracy_metric`, `precision_metric`, `recall_metric` |
+| **Regression** | `mse_metric`, `rmse_metric`, `mae_metric`, `r2_metric` |
+| **Bounded** | `bounded_mse_metric`, `out_of_bounds_metric` |
 
 ## Custom Objectives
 
@@ -191,6 +230,23 @@ model = xgb.train(
 )
 ```
 
+## Sklearn Interface
+
+Use custom objectives with `XGBClassifier` and `XGBRegressor`:
+
+```python
+from xgboost import XGBClassifier
+from jaxboost import focal_loss
+
+clf = XGBClassifier(
+    objective=focal_loss.sklearn_objective,
+    n_estimators=100,
+    max_depth=4
+)
+clf.fit(X_train, y_train)
+y_pred = clf.predict(X_test)
+```
+
 ## Why jaxboost?
 
 | Traditional Approach | jaxboost |
@@ -199,6 +255,53 @@ model = xgb.train(
 | Derive Hessians by hand | Write loss, get Hessians free |
 | Error-prone math | JAX autodiff is correct by construction |
 | One loss = hours of work | One loss = 5 lines of code |
+
+## Benchmark Results
+
+JAXBoost shines when XGBoost/LightGBM have **no native solution**:
+
+### Bounded Regression (Proportions in [0, 1])
+
+Predicting proportions where standard MSE can predict outside valid range.
+
+| Model | MSE | Out-of-Bounds | Code |
+|-------|-----|---------------|------|
+| **JAXBoost Soft CE** | **0.0181** | 0% | 5 lines |
+| Native MSE + Clip | 0.0201 | 0% | post-hoc fix |
+| Native MSE | 0.0201 | 4.9% | - |
+
+**9.5% improvement** + guaranteed valid outputs.
+
+```python
+@auto_objective
+def soft_crossentropy(y_pred, y_true):
+    mu = sigmoid(y_pred)
+    return -(y_true * jnp.log(mu) + (1 - y_true) * jnp.log(1 - mu))
+```
+
+### Ordinal Regression (Wine Quality)
+
+Predicting ordered categories (ratings 3-8) with Quadratic Weighted Kappa.
+
+| Model | QWK | Probabilistic |
+|-------|-----|---------------|
+| Regression + OptRounder | 0.55 | No |
+| **JAXBoost Squared CDF** | **0.54** | **Yes** |
+| Native Multi-class | 0.51 | Yes |
+| Native Regression | 0.48 | No |
+
+JAXBoost ordinal objectives provide **proper probability distributions** over classes.
+
+### When to Use JAXBoost
+
+| Problem | XGBoost/LightGBM Native? | JAXBoost Advantage |
+|---------|--------------------------|-------------------|
+| Bounded regression [0,1] | ❌ No | ✅ 9.5% better MSE |
+| Ordinal regression | ❌ No | ✅ Probabilistic outputs |
+| Multi-task + missing labels | ❌ No | ✅ Proper masking |
+| Custom business metrics | ❌ No | ✅ 5 lines of code |
+
+📊 [Full benchmark details →](https://jxucoder.github.io/jaxboost/benchmarks/)
 
 ## Requirements
 

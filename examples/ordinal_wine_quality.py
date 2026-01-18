@@ -15,9 +15,15 @@ Models:
 6. JAXBoost Squared CDF (Continuous Ranked Probability Score)
 
 Key insight: QWK is non-differentiable.
-- EQE aligns with the Numerator of QWK (squared error).
-- Squared CDF aligns with the Distributional Shape (Ranked Probability Score).
+- OptRounder directly optimizes QWK via threshold search (two-stage)
+- Ordinal objectives optimize a differentiable surrogate (single-stage)
+- Ordinal objectives provide proper probabilistic outputs
+
+Usage:
+    JAX_PLATFORMS=cpu python examples/ordinal_wine_quality.py
 """
+import os
+os.environ.setdefault("JAX_PLATFORMS", "cpu")
 
 import time
 from functools import partial
@@ -26,7 +32,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import scipy.optimize
-from sklearn.metrics import cohen_kappa_score, confusion_matrix
+from sklearn.metrics import accuracy_score, cohen_kappa_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 

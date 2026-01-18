@@ -89,6 +89,9 @@ from jaxboost.objective import (
     weighted_binary_crossentropy,
 )
 
+# Metrics module
+from jaxboost import metric
+
 __all__ = [
     "__version__",
     # Core

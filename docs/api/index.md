@@ -93,10 +93,14 @@ Welcome to the JAXBoost API documentation.
 
 | Objective | Description |
 |-----------|-------------|
-| [`ordinal_regression`](losses.md#jaxboost.objective.ordinal_regression) | Cumulative Link Model (probit/logit) |
+| [`ordinal_logit`](losses.md#jaxboost.objective.ordinal_logit) | Cumulative Link Model (logit link) |
+| [`ordinal_probit`](losses.md#jaxboost.objective.ordinal_probit) | Cumulative Link Model (probit link) |
 | [`qwk_ordinal`](losses.md#jaxboost.objective.qwk_ordinal) | QWK-aligned Expected Quadratic Error |
 | [`squared_cdf_ordinal`](losses.md#jaxboost.objective.squared_cdf_ordinal) | CRPS / Ranked Probability Score |
 | [`hybrid_ordinal`](losses.md#jaxboost.objective.hybrid_ordinal) | NLL + EQE hybrid |
+| [`slace_objective`](losses.md#jaxboost.objective.slace_objective) | SLACE (AAAI 2025) |
+| [`sord_objective`](losses.md#jaxboost.objective.sord_objective) | SORD - Soft Ordinal |
+| [`oll_objective`](losses.md#jaxboost.objective.oll_objective) | OLL - Ordinal Log-Loss |
 
 ### Survival Analysis
 
