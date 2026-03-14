@@ -14,6 +14,11 @@ from typing import Any
 import numpy as np
 
 
+def sigmoid(x: np.ndarray) -> np.ndarray:
+    """Numerically stable sigmoid."""
+    return np.where(x >= 0, 1 / (1 + np.exp(-x)), np.exp(x) / (1 + np.exp(x)))
+
+
 class Metric:
     """
     Base class for XGBoost/LightGBM evaluation metrics.

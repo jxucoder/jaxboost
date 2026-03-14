@@ -309,6 +309,39 @@ class OrdinalObjective:
         """XGBoost-compatible objective function."""
         return self.get_xgb_objective()
 
+    def get_lgb_objective(
+        self,
+    ) -> Callable[
+        [NDArray[np.floating[Any]], Any],
+        tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]],
+    ]:
+        """
+        Get a LightGBM-compatible objective function.
+
+        Returns:
+            LightGBM objective function: (y_pred, dataset) -> (grad, hess)
+        """
+
+        def objective(
+            y_pred: NDArray[np.floating[Any]], dataset: Any
+        ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
+            y_true = dataset.get_label()
+            sample_weight = dataset.get_weight()
+            return self.grad_hess(y_pred, y_true, sample_weight=sample_weight)
+
+        objective.__name__ = f"ordinal_{self.link}_lgb_objective"
+        return objective
+
+    @property
+    def lgb_objective(
+        self,
+    ) -> Callable[
+        [NDArray[np.floating[Any]], Any],
+        tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]],
+    ]:
+        """LightGBM-compatible objective function."""
+        return self.get_lgb_objective()
+
     def predict_proba(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.floating[Any]]:
         """
         Convert latent predictions to class probabilities.
@@ -840,7 +873,169 @@ def hybrid_ordinal(
 # =============================================================================
 
 
-class SORDObjective:
+class _MultiClassOrdinalBase:
+    """
+    Base class for multi-class ordinal objectives (SORD, OLL, SLACE).
+
+    Provides shared infrastructure for gradient/Hessian computation, XGBoost/LightGBM
+    integration, sklearn compatibility, and prediction. Subclasses only need to
+    implement ``_loss_single()`` and ``_loss_single_probs()``.
+    """
+
+    n_classes: int
+    alpha: float
+    _name: str
+    _class_indices: jax.Array
+
+    def _ensure_2d(
+        self, y_pred: NDArray[np.floating[Any]], n_samples: int
+    ) -> NDArray[np.floating[Any]]:
+        """Ensure y_pred is 2D with shape (n_samples, n_classes).
+
+        Raises ValueError if the size doesn't match expectations.
+        """
+        y_pred_arr = np.asarray(y_pred)
+        if y_pred_arr.size == n_samples * self.n_classes:
+            return y_pred_arr.reshape(n_samples, self.n_classes)
+        if y_pred_arr.size == n_samples:
+            # First iteration: XGBoost may pass flat predictions before multi-class kicks in
+            return np.zeros((n_samples, self.n_classes), dtype=np.float64)
+        raise ValueError(
+            f"y_pred size {y_pred_arr.size} does not match "
+            f"n_samples={n_samples} * n_classes={self.n_classes}"
+        )
+
+    def _soft_targets(self, y: jax.Array) -> jax.Array:
+        """Generate soft target distribution centered on true class y."""
+        distances = jnp.abs(self._class_indices - y.astype(jnp.float32))
+        return jax.nn.softmax(-self.alpha * distances)
+
+    def _loss_single(self, logits: jax.Array, y: jax.Array) -> jax.Array:
+        """Compute loss for a single sample. Override in subclasses."""
+        raise NotImplementedError
+
+    def _loss_single_probs(self, p: jax.Array, y: jax.Array) -> jax.Array:
+        """Compute loss for a single sample given probabilities. Override in subclasses."""
+        raise NotImplementedError
+
+    def loss(
+        self,
+        y_pred: NDArray[np.floating[Any]],
+        y_true: NDArray[np.floating[Any]],
+    ) -> NDArray[np.floating[Any]]:
+        n_samples = len(y_true)
+        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
+        y = jnp.asarray(y_true, dtype=jnp.int32)
+        losses = jax.vmap(self._loss_single)(logits, y)
+        return np.asarray(losses, dtype=np.float64)
+
+    def gradient(
+        self,
+        y_pred: NDArray[np.floating[Any]],
+        y_true: NDArray[np.floating[Any]],
+    ) -> NDArray[np.floating[Any]]:
+        n_samples = len(y_true)
+        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
+        y = jnp.asarray(y_true, dtype=jnp.int32)
+        grad_fn = jax.grad(self._loss_single, argnums=0)
+        grads = jax.vmap(grad_fn)(logits, y)
+        return np.asarray(grads, dtype=np.float64)
+
+    def hessian(
+        self,
+        y_pred: NDArray[np.floating[Any]],
+        y_true: NDArray[np.floating[Any]],
+    ) -> NDArray[np.floating[Any]]:
+        n_samples = len(y_true)
+        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
+        y = jnp.asarray(y_true, dtype=jnp.int32)
+
+        def hess_diag_single(logits_i: jax.Array, y_i: jax.Array) -> jax.Array:
+            grad_fn = jax.grad(self._loss_single, argnums=0)
+            hess_fn = jax.jacfwd(grad_fn, argnums=0)
+            H = hess_fn(logits_i, y_i)  # noqa: N806
+            return jnp.diag(H)
+
+        hess = jax.vmap(hess_diag_single)(logits, y)
+        hess = jnp.maximum(hess, 1e-6)
+        return np.asarray(hess, dtype=np.float64)
+
+    def grad_hess(
+        self,
+        y_pred: NDArray[np.floating[Any]],
+        y_true: NDArray[np.floating[Any]],
+        sample_weight: NDArray[np.floating[Any]] | None = None,
+    ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
+        grad = self.gradient(y_pred, y_true)
+        hess = self.hessian(y_pred, y_true)
+        if sample_weight is not None and len(sample_weight) > 0:
+            weight = np.repeat(sample_weight, self.n_classes).reshape(grad.shape)
+            grad = grad * weight
+            hess = hess * weight
+        return grad, hess
+
+    def get_xgb_objective(self) -> Callable:
+        """Get an XGBoost-compatible objective function."""
+
+        def objective(y_pred, dtrain):
+            y_true = dtrain.get_label()
+            sample_weight = dtrain.get_weight()
+            return self.grad_hess(y_pred, y_true, sample_weight)
+
+        objective.__name__ = f"{self._name}_xgb_objective"
+        return objective
+
+    @property
+    def xgb_objective(self) -> Callable:
+        """XGBoost-compatible objective function."""
+        return self.get_xgb_objective()
+
+    def get_lgb_objective(self) -> Callable:
+        """Get a LightGBM-compatible objective function."""
+
+        def objective(y_pred, dataset):
+            y_true = dataset.get_label()
+            sample_weight = dataset.get_weight()
+            return self.grad_hess(y_pred, y_true, sample_weight)
+
+        objective.__name__ = f"{self._name}_lgb_objective"
+        return objective
+
+    @property
+    def lgb_objective(self) -> Callable:
+        """LightGBM-compatible objective function."""
+        return self.get_lgb_objective()
+
+    def _probs_grad_hess(
+        self,
+        y_true: NDArray[np.floating[Any]],
+        probs: NDArray[np.floating[Any]],
+    ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
+        """Compute gradient/hessian w.r.t. softmax probabilities (for sklearn API)."""
+        probs_jax = jnp.asarray(probs, dtype=jnp.float32)
+        y = jnp.asarray(y_true, dtype=jnp.int32)
+
+        grad_fn = jax.grad(self._loss_single_probs, argnums=0)
+        grads = jax.vmap(grad_fn)(probs_jax, y)
+        hess = np.ones_like(grads)
+        return np.asarray(grads, dtype=np.float64), hess
+
+    @property
+    def sklearn_objective(self) -> Callable:
+        """Objective for XGBClassifier (receives softmax probs, not logits)."""
+
+        def objective(y_true, probs):
+            return self._probs_grad_hess(y_true, probs)
+
+        return objective
+
+    def predict(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.intp]:
+        n_samples = len(y_pred) // self.n_classes
+        logits = np.asarray(y_pred).reshape(n_samples, self.n_classes)
+        return np.argmax(logits, axis=1)
+
+
+class SORDObjective(_MultiClassOrdinalBase):
     """
     SORD: Soft Ordinal Regression (Diaz & Marathe, CVPR 2019).
 
@@ -858,140 +1053,25 @@ class SORDObjective:
     def __init__(self, n_classes: int, alpha: float = 1.0) -> None:
         self.n_classes = n_classes
         self.alpha = alpha
+        self._name = "sord"
         self._class_indices = jnp.arange(n_classes, dtype=jnp.float32)
-
-    def _ensure_2d(
-        self, y_pred: NDArray[np.floating[Any]], n_samples: int
-    ) -> NDArray[np.floating[Any]]:
-        """Ensure y_pred is 2D with shape (n_samples, n_classes)."""
-        y_pred_arr = np.asarray(y_pred)
-        if y_pred_arr.size == n_samples * self.n_classes:
-            return y_pred_arr.reshape(n_samples, self.n_classes)
-        # First iteration: expand to multi-class
-        return np.zeros((n_samples, self.n_classes), dtype=np.float64)
-
-    def _soft_targets(self, y: jax.Array) -> jax.Array:
-        """Generate soft target distribution centered on true class y."""
-        distances = jnp.abs(self._class_indices - y.astype(jnp.float32))
-        return jax.nn.softmax(-self.alpha * distances)
 
     def _loss_single(self, logits: jax.Array, y: jax.Array) -> jax.Array:
         """SORD loss for a single sample."""
         probs = jax.nn.softmax(logits)
         targets = self._soft_targets(y)
-        # Cross entropy with soft targets
         return -jnp.sum(targets * jnp.log(jnp.clip(probs, 1e-10, 1.0)))
 
-    def loss(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-    ) -> NDArray[np.floating[Any]]:
-        n_samples = len(y_true)
-        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-        losses = jax.vmap(self._loss_single)(logits, y)
-        return np.asarray(losses, dtype=np.float64)
-
-    def gradient(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-    ) -> NDArray[np.floating[Any]]:
-        n_samples = len(y_true)
-        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-        grad_fn = jax.grad(self._loss_single, argnums=0)
-        grads = jax.vmap(grad_fn)(logits, y)
-        return np.asarray(grads, dtype=np.float64)
-
-    def hessian(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-    ) -> NDArray[np.floating[Any]]:
-        n_samples = len(y_true)
-        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-
-        def hess_diag_single(logits_i: jax.Array, y_i: jax.Array) -> jax.Array:
-            grad_fn = jax.grad(self._loss_single, argnums=0)
-            hess_fn = jax.jacfwd(grad_fn, argnums=0)
-            H = hess_fn(logits_i, y_i)  # noqa: N806
-            return jnp.diag(H)
-
-        hess = jax.vmap(hess_diag_single)(logits, y)
-        hess = jnp.maximum(hess, 1e-6)
-        return np.asarray(hess, dtype=np.float64)
-
-    def grad_hess(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-        sample_weight: NDArray[np.floating[Any]] | None = None,
-    ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
-        grad = self.gradient(y_pred, y_true)
-        hess = self.hessian(y_pred, y_true)
-        if sample_weight is not None and len(sample_weight) > 0:
-            weight = np.repeat(sample_weight, self.n_classes).reshape(grad.shape)
-            grad = grad * weight
-            hess = hess * weight
-        return grad, hess
-
-    def get_xgb_objective(self) -> Callable:
-        def objective(y_pred, dtrain):
-            y_true = dtrain.get_label()
-            sample_weight = dtrain.get_weight()
-            return self.grad_hess(y_pred, y_true, sample_weight)
-
-        objective.__name__ = "sord_xgb_objective"
-        return objective
-
-    @property
-    def xgb_objective(self) -> Callable:
-        return self.get_xgb_objective()
-
-    def _probs_grad_hess(
-        self,
-        y_true: NDArray[np.floating[Any]],
-        probs: NDArray[np.floating[Any]],
-    ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
-        """Compute gradient/hessian w.r.t. softmax probabilities (for sklearn API)."""
-        probs_jax = jnp.asarray(probs, dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-
-        def loss_single_probs(p: jax.Array, y_i: jax.Array) -> jax.Array:
-            """Loss for a single sample given probabilities."""
-            targets = self._soft_targets(y_i)
-            return -jnp.sum(targets * jnp.log(jnp.clip(p, 1e-10, 1.0)))
-
-        grad_fn = jax.grad(loss_single_probs, argnums=0)
-        grads = jax.vmap(grad_fn)(probs_jax, y)
-        # SLACE paper uses constant hessian
-        hess = np.ones_like(grads)
-        return np.asarray(grads, dtype=np.float64), hess
-
-    @property
-    def sklearn_objective(self) -> Callable:
-        """Objective for XGBClassifier (receives softmax probs, not logits)."""
-
-        def objective(y_true, probs):
-            grad, hess = self._probs_grad_hess(y_true, probs)
-            # XGBoost 2.1+ requires (n_samples, n_classes) shape
-            return grad, hess
-
-        return objective
-
-    def predict(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.intp]:
-        n_samples = len(y_pred) // self.n_classes
-        logits = np.asarray(y_pred).reshape(n_samples, self.n_classes)
-        return np.argmax(logits, axis=1)
+    def _loss_single_probs(self, p: jax.Array, y: jax.Array) -> jax.Array:
+        """SORD loss for a single sample given probabilities."""
+        targets = self._soft_targets(y)
+        return -jnp.sum(targets * jnp.log(jnp.clip(p, 1e-10, 1.0)))
 
     def __repr__(self) -> str:
         return f"SORDObjective(n_classes={self.n_classes}, alpha={self.alpha})"
 
 
-class OLLObjective:
+class OLLObjective(_MultiClassOrdinalBase):
     """
     OLL: Ordinal Log Loss (Castagnos et al., COLING 2022).
 
@@ -1006,134 +1086,27 @@ class OLLObjective:
     def __init__(self, n_classes: int, alpha: float = 1.0) -> None:
         self.n_classes = n_classes
         self.alpha = alpha
+        self._name = "oll"
         self._class_indices = jnp.arange(n_classes, dtype=jnp.float32)
-
-    def _ensure_2d(
-        self, y_pred: NDArray[np.floating[Any]], n_samples: int
-    ) -> NDArray[np.floating[Any]]:
-        """Ensure y_pred is 2D with shape (n_samples, n_classes)."""
-        y_pred_arr = np.asarray(y_pred)
-        if y_pred_arr.size == n_samples * self.n_classes:
-            return y_pred_arr.reshape(n_samples, self.n_classes)
-        return np.zeros((n_samples, self.n_classes), dtype=np.float64)
 
     def _loss_single(self, logits: jax.Array, y: jax.Array) -> jax.Array:
         """OLL loss for a single sample."""
         probs = jax.nn.softmax(logits)
         distances = jnp.abs(self._class_indices - y.astype(jnp.float32))
         weights = distances**self.alpha
-        # Penalize probabilities on wrong classes, weighted by distance
         return -jnp.sum(weights * jnp.log(jnp.clip(1 - probs, 1e-10, 1.0)))
 
-    def loss(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-    ) -> NDArray[np.floating[Any]]:
-        n_samples = len(y_true)
-        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-        losses = jax.vmap(self._loss_single)(logits, y)
-        return np.asarray(losses, dtype=np.float64)
-
-    def gradient(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-    ) -> NDArray[np.floating[Any]]:
-        n_samples = len(y_true)
-        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-        grad_fn = jax.grad(self._loss_single, argnums=0)
-        grads = jax.vmap(grad_fn)(logits, y)
-        return np.asarray(grads, dtype=np.float64)
-
-    def hessian(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-    ) -> NDArray[np.floating[Any]]:
-        n_samples = len(y_true)
-        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-
-        def hess_diag_single(logits_i: jax.Array, y_i: jax.Array) -> jax.Array:
-            grad_fn = jax.grad(self._loss_single, argnums=0)
-            hess_fn = jax.jacfwd(grad_fn, argnums=0)
-            H = hess_fn(logits_i, y_i)  # noqa: N806
-            return jnp.diag(H)
-
-        hess = jax.vmap(hess_diag_single)(logits, y)
-        hess = jnp.maximum(hess, 1e-6)
-        return np.asarray(hess, dtype=np.float64)
-
-    def grad_hess(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-        sample_weight: NDArray[np.floating[Any]] | None = None,
-    ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
-        grad = self.gradient(y_pred, y_true)
-        hess = self.hessian(y_pred, y_true)
-        if sample_weight is not None and len(sample_weight) > 0:
-            weight = np.repeat(sample_weight, self.n_classes).reshape(grad.shape)
-            grad = grad * weight
-            hess = hess * weight
-        return grad, hess
-
-    def get_xgb_objective(self) -> Callable:
-        def objective(y_pred, dtrain):
-            y_true = dtrain.get_label()
-            sample_weight = dtrain.get_weight()
-            return self.grad_hess(y_pred, y_true, sample_weight)
-
-        objective.__name__ = "oll_xgb_objective"
-        return objective
-
-    @property
-    def xgb_objective(self) -> Callable:
-        return self.get_xgb_objective()
-
-    def _probs_grad_hess(
-        self,
-        y_true: NDArray[np.floating[Any]],
-        probs: NDArray[np.floating[Any]],
-    ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
-        """Compute gradient/hessian w.r.t. softmax probabilities (for sklearn API)."""
-        probs_jax = jnp.asarray(probs, dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-
-        def loss_single_probs(p: jax.Array, y_i: jax.Array) -> jax.Array:
-            """OLL loss for a single sample given probabilities."""
-            distances = jnp.abs(self._class_indices - y_i.astype(jnp.float32))
-            weights = distances**self.alpha
-            return -jnp.sum(weights * jnp.log(jnp.clip(1 - p, 1e-10, 1.0)))
-
-        grad_fn = jax.grad(loss_single_probs, argnums=0)
-        grads = jax.vmap(grad_fn)(probs_jax, y)
-        hess = np.ones_like(grads)
-        return np.asarray(grads, dtype=np.float64), hess
-
-    @property
-    def sklearn_objective(self) -> Callable:
-        """Objective for XGBClassifier (receives softmax probs, not logits)."""
-
-        def objective(y_true, probs):
-            grad, hess = self._probs_grad_hess(y_true, probs)
-            return grad, hess
-
-        return objective
-
-    def predict(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.intp]:
-        n_samples = len(y_pred) // self.n_classes
-        logits = np.asarray(y_pred).reshape(n_samples, self.n_classes)
-        return np.argmax(logits, axis=1)
+    def _loss_single_probs(self, p: jax.Array, y: jax.Array) -> jax.Array:
+        """OLL loss for a single sample given probabilities."""
+        distances = jnp.abs(self._class_indices - y.astype(jnp.float32))
+        weights = distances**self.alpha
+        return -jnp.sum(weights * jnp.log(jnp.clip(1 - p, 1e-10, 1.0)))
 
     def __repr__(self) -> str:
         return f"OLLObjective(n_classes={self.n_classes}, alpha={self.alpha})"
 
 
-class SLACEObjective:
+class SLACEObjective(_MultiClassOrdinalBase):
     """
     SLACE: Soft Labels Accumulating Cross Entropy (AAAI 2025).
 
@@ -1154,18 +1127,9 @@ class SLACEObjective:
     def __init__(self, n_classes: int, alpha: float = 1.0) -> None:
         self.n_classes = n_classes
         self.alpha = alpha
+        self._name = "slace"
         self._class_indices = jnp.arange(n_classes, dtype=jnp.float32)
-        # Precompute dominance matrices for each class
         self._dom_matrices = self._build_dominance_matrices()
-
-    def _ensure_2d(
-        self, y_pred: NDArray[np.floating[Any]], n_samples: int
-    ) -> NDArray[np.floating[Any]]:
-        """Ensure y_pred is 2D with shape (n_samples, n_classes)."""
-        y_pred_arr = np.asarray(y_pred)
-        if y_pred_arr.size == n_samples * self.n_classes:
-            return y_pred_arr.reshape(n_samples, self.n_classes)
-        return np.zeros((n_samples, self.n_classes), dtype=np.float64)
 
     def _build_dominance_matrices(self) -> jax.Array:
         """Build dominance matrices D[y] for each true class y."""
@@ -1182,129 +1146,20 @@ class SLACEObjective:
             matrices.append(D)
         return jnp.array(matrices)
 
-    def _soft_targets(self, y: jax.Array) -> jax.Array:
-        """Generate soft target distribution centered on true class y."""
-        distances = jnp.abs(self._class_indices - y.astype(jnp.float32))
-        return jax.nn.softmax(-self.alpha * distances)
-
     def _loss_single(self, logits: jax.Array, y: jax.Array) -> jax.Array:
         """SLACE loss for a single sample."""
         probs = jax.nn.softmax(logits)
         targets = self._soft_targets(y)
-
-        # Get dominance matrix for this true class
         D = self._dom_matrices[y]  # noqa: N806
-
-        # Accumulated probabilities
         acc_probs = D @ probs
-
-        # Cross entropy with soft targets on accumulated probs
         return -jnp.sum(targets * jnp.log(jnp.clip(acc_probs, 1e-10, 1.0)))
 
-    def loss(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-    ) -> NDArray[np.floating[Any]]:
-        n_samples = len(y_true)
-        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-        losses = jax.vmap(self._loss_single)(logits, y)
-        return np.asarray(losses, dtype=np.float64)
-
-    def gradient(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-    ) -> NDArray[np.floating[Any]]:
-        n_samples = len(y_true)
-        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-        grad_fn = jax.grad(self._loss_single, argnums=0)
-        grads = jax.vmap(grad_fn)(logits, y)
-        return np.asarray(grads, dtype=np.float64)
-
-    def hessian(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-    ) -> NDArray[np.floating[Any]]:
-        n_samples = len(y_true)
-        logits = jnp.asarray(self._ensure_2d(y_pred, n_samples), dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-
-        def hess_diag_single(logits_i: jax.Array, y_i: jax.Array) -> jax.Array:
-            grad_fn = jax.grad(self._loss_single, argnums=0)
-            hess_fn = jax.jacfwd(grad_fn, argnums=0)
-            H = hess_fn(logits_i, y_i)  # noqa: N806
-            return jnp.diag(H)
-
-        hess = jax.vmap(hess_diag_single)(logits, y)
-        hess = jnp.maximum(hess, 1e-6)
-        return np.asarray(hess, dtype=np.float64)
-
-    def grad_hess(
-        self,
-        y_pred: NDArray[np.floating[Any]],
-        y_true: NDArray[np.floating[Any]],
-        sample_weight: NDArray[np.floating[Any]] | None = None,
-    ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
-        grad = self.gradient(y_pred, y_true)
-        hess = self.hessian(y_pred, y_true)
-        if sample_weight is not None and len(sample_weight) > 0:
-            weight = np.repeat(sample_weight, self.n_classes).reshape(grad.shape)
-            grad = grad * weight
-            hess = hess * weight
-        return grad, hess
-
-    def get_xgb_objective(self) -> Callable:
-        def objective(y_pred, dtrain):
-            y_true = dtrain.get_label()
-            sample_weight = dtrain.get_weight()
-            return self.grad_hess(y_pred, y_true, sample_weight)
-
-        objective.__name__ = "slace_xgb_objective"
-        return objective
-
-    @property
-    def xgb_objective(self) -> Callable:
-        return self.get_xgb_objective()
-
-    def _probs_grad_hess(
-        self,
-        y_true: NDArray[np.floating[Any]],
-        probs: NDArray[np.floating[Any]],
-    ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
-        """Compute gradient/hessian w.r.t. softmax probabilities (for sklearn API)."""
-        probs_jax = jnp.asarray(probs, dtype=jnp.float32)
-        y = jnp.asarray(y_true, dtype=jnp.int32)
-
-        def loss_single_probs(p: jax.Array, y_i: jax.Array) -> jax.Array:
-            """SLACE loss for a single sample given probabilities."""
-            targets = self._soft_targets(y_i)
-            D = self._dom_matrices[y_i]  # noqa: N806
-            acc_probs = D @ p
-            return -jnp.sum(targets * jnp.log(jnp.clip(acc_probs, 1e-10, 1.0)))
-
-        grad_fn = jax.grad(loss_single_probs, argnums=0)
-        grads = jax.vmap(grad_fn)(probs_jax, y)
-        hess = np.ones_like(grads)
-        return np.asarray(grads, dtype=np.float64), hess
-
-    @property
-    def sklearn_objective(self) -> Callable:
-        """Objective for XGBClassifier (receives softmax probs, not logits)."""
-
-        def objective(y_true, probs):
-            grad, hess = self._probs_grad_hess(y_true, probs)
-            return grad, hess
-
-        return objective
-
-    def predict(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.intp]:
-        n_samples = len(y_pred) // self.n_classes
-        logits = np.asarray(y_pred).reshape(n_samples, self.n_classes)
-        return np.argmax(logits, axis=1)
+    def _loss_single_probs(self, p: jax.Array, y: jax.Array) -> jax.Array:
+        """SLACE loss for a single sample given probabilities."""
+        targets = self._soft_targets(y)
+        D = self._dom_matrices[y]  # noqa: N806
+        acc_probs = D @ p
+        return -jnp.sum(targets * jnp.log(jnp.clip(acc_probs, 1e-10, 1.0)))
 
     def __repr__(self) -> str:
         return f"SLACEObjective(n_classes={self.n_classes}, alpha={self.alpha})"

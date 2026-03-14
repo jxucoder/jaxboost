@@ -142,12 +142,13 @@ class MaskedMultiTaskObjective:
         # Compute for all tasks
         grads, hess = jax.vmap(task_grad_hess)(y_pred, y_true)
 
-        # Apply mask: 0 gradient/hessian for missing labels
+        # Apply mask and task weights
         grads = grads * mask * self.task_weights
         hess = hess * mask * self.task_weights
 
-        # Ensure Hessian is positive (for XGBoost stability)
-        hess = jnp.maximum(hess, 1e-6)
+        # Ensure Hessian is positive for valid entries (XGBoost stability),
+        # but keep masked entries at 0 so they don't cause updates.
+        hess = jnp.where(mask > 0, jnp.maximum(hess, 1e-6), 0.0)
 
         return grads, hess
 

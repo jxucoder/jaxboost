@@ -6,12 +6,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from jaxboost.metric.base import Metric
-
-
-def _sigmoid(x: np.ndarray) -> np.ndarray:
-    """Numerically stable sigmoid."""
-    return np.where(x >= 0, 1 / (1 + np.exp(-x)), np.exp(x) / (1 + np.exp(x)))
+from jaxboost.metric.base import Metric, sigmoid as _sigmoid
 
 
 def _compute_auc(y_true: np.ndarray, y_score: np.ndarray) -> float:
