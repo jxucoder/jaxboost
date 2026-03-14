@@ -22,37 +22,16 @@ Quick Start:
 
 Available Objectives:
     - Binary: focal_loss, binary_crossentropy, hinge_loss
-    - Regression: mse, huber, quantile, tweedie, asymmetric, log_cosh
+    - Regression: mse, huber, quantile, tweedie, asymmetric, log_cosh, poisson, gamma
     - Multi-class: softmax_cross_entropy, focal_multiclass, label_smoothing
-    - Survival: cox_partial_likelihood, aft, weibull_aft
+    - Ordinal: ordinal_logit, ordinal_probit, qwk_ordinal, sord_objective, slace_objective
+    - Survival: aft, weibull_aft
     - Multi-task: multi_task_regression, multi_task_classification
 """
 
 # Metrics module
 from jaxboost import metric
 from jaxboost._version import __version__
-
-# =============================================================================
-# Core: Auto-Objective
-# =============================================================================
-# =============================================================================
-# Built-in Objectives: Binary Classification
-# =============================================================================
-# =============================================================================
-# Built-in Objectives: Regression
-# =============================================================================
-# =============================================================================
-# Built-in Objectives: Multi-class Classification
-# =============================================================================
-# =============================================================================
-# Built-in Objectives: Survival Analysis
-# =============================================================================
-# =============================================================================
-# Built-in Objectives: Multi-task Learning
-# =============================================================================
-# =============================================================================
-# Built-in Objectives: Multi-output (Uncertainty)
-# =============================================================================
 from jaxboost.objective import (
     # Core decorator
     AutoObjective,
@@ -61,6 +40,13 @@ from jaxboost.objective import (
     # Multi-class/multi-output variants
     MultiClassObjective,
     MultiOutputObjective,
+    # Ordinal regression
+    OLLObjective,
+    OrdinalObjective,
+    QWKOrdinalObjective,
+    SLACEObjective,
+    SORDObjective,
+    SquaredCDFObjective,
     aft,
     asymmetric,
     auto_objective,
@@ -68,9 +54,11 @@ from jaxboost.objective import (
     class_balanced,
     focal_loss,
     focal_multiclass,
+    gamma,
     gaussian_nll,
     hinge_loss,
     huber,
+    hybrid_ordinal,
     label_smoothing,
     laplace_nll,
     log_cosh,
@@ -83,9 +71,18 @@ from jaxboost.objective import (
     multi_task_quantile,
     multi_task_regression,
     multiclass_objective,
+    oll_objective,
+    ordinal_logit,
+    ordinal_probit,
+    ordinal_regression,
+    poisson,
     pseudo_huber,
     quantile,
+    qwk_ordinal,
+    slace_objective,
     softmax_cross_entropy,
+    sord_objective,
+    squared_cdf_ordinal,
     tweedie,
     weibull_aft,
     weighted_binary_crossentropy,
@@ -117,11 +114,29 @@ __all__ = [
     "log_cosh",
     "pseudo_huber",
     "mae_smooth",
+    "poisson",
+    "gamma",
     # Multi-class
     "softmax_cross_entropy",
     "focal_multiclass",
     "label_smoothing",
     "class_balanced",
+    # Ordinal regression
+    "OrdinalObjective",
+    "QWKOrdinalObjective",
+    "SquaredCDFObjective",
+    "SORDObjective",
+    "OLLObjective",
+    "SLACEObjective",
+    "ordinal_regression",
+    "ordinal_probit",
+    "ordinal_logit",
+    "qwk_ordinal",
+    "hybrid_ordinal",
+    "squared_cdf_ordinal",
+    "sord_objective",
+    "oll_objective",
+    "slace_objective",
     # Survival
     "aft",
     "weibull_aft",

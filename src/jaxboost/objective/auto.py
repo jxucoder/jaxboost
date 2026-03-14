@@ -69,7 +69,9 @@ class AutoObjective:
         """Wrapper to handle kwargs as dict arguments for JAX transformations."""
         return self.loss_fn(y_pred, y_true, **scalar_kwargs, **array_kwargs)
 
-    def _get_vmap_fns(self, array_kwarg_keys: frozenset[str]) -> tuple[Any, Any]:
+    def _get_vmap_fns(
+        self, array_kwarg_keys: frozenset[str]
+    ) -> tuple[Any, Any, Any]:
         """Get or create JIT-compiled vmap functions for given array kwargs pattern."""
         if array_kwarg_keys not in self._vmap_cache:
             # Create in_axes: (0, 0, None for scalars, 0 for each array kwarg)
@@ -78,7 +80,14 @@ class AutoObjective:
 
             vmap_grad = jax.jit(jax.vmap(self._grad_fn, in_axes=in_axes))
             vmap_hess = jax.jit(jax.vmap(self._hess_fn, in_axes=in_axes))
-            self._vmap_cache[array_kwarg_keys] = (vmap_grad, vmap_hess)
+
+            # Fused grad+hess: compute both in a single vmap pass
+            def _grad_and_hess(y_pred, y_true, scalar_kwargs, array_kwargs):
+                return self._grad_fn(y_pred, y_true, scalar_kwargs, array_kwargs), \
+                    self._hess_fn(y_pred, y_true, scalar_kwargs, array_kwargs)
+
+            vmap_grad_hess = jax.jit(jax.vmap(_grad_and_hess, in_axes=in_axes))
+            self._vmap_cache[array_kwarg_keys] = (vmap_grad, vmap_hess, vmap_grad_hess)
 
         return self._vmap_cache[array_kwarg_keys]
 
@@ -133,7 +142,7 @@ class AutoObjective:
 
         n_samples = len(y_pred)
         scalar_kwargs, array_kwargs, array_keys = self._split_kwargs(merged_kwargs, n_samples)
-        vmap_grad, _ = self._get_vmap_fns(array_keys)
+        vmap_grad, _, _ = self._get_vmap_fns(array_keys)
 
         grads = vmap_grad(y_pred_jax, y_true_jax, scalar_kwargs, array_kwargs)
         return np.asarray(grads, dtype=np.float64)
@@ -161,7 +170,7 @@ class AutoObjective:
 
         n_samples = len(y_pred)
         scalar_kwargs, array_kwargs, array_keys = self._split_kwargs(merged_kwargs, n_samples)
-        _, vmap_hess = self._get_vmap_fns(array_keys)
+        _, vmap_hess, _ = self._get_vmap_fns(array_keys)
 
         hess = vmap_hess(y_pred_jax, y_true_jax, scalar_kwargs, array_kwargs)
         return np.asarray(hess, dtype=np.float64)
@@ -174,7 +183,7 @@ class AutoObjective:
         **kwargs: Any,
     ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
         """
-        Compute both gradient and Hessian efficiently.
+        Compute both gradient and Hessian efficiently in a single pass.
 
         Args:
             y_pred: Predictions, shape (n_samples,)
@@ -185,8 +194,17 @@ class AutoObjective:
         Returns:
             Tuple of (gradients, hessians), each shape (n_samples,)
         """
-        grad = self.gradient(y_pred, y_true, **kwargs)
-        hess = self.hessian(y_pred, y_true, **kwargs)
+        merged_kwargs = {**self._default_kwargs, **kwargs}
+        y_pred_jax = jnp.asarray(y_pred, dtype=jnp.float32)
+        y_true_jax = jnp.asarray(y_true, dtype=jnp.float32)
+
+        n_samples = len(y_pred)
+        scalar_kwargs, array_kwargs, array_keys = self._split_kwargs(merged_kwargs, n_samples)
+        _, _, vmap_grad_hess = self._get_vmap_fns(array_keys)
+
+        grads, hess = vmap_grad_hess(y_pred_jax, y_true_jax, scalar_kwargs, array_kwargs)
+        grad = np.asarray(grads, dtype=np.float64)
+        hess = np.asarray(hess, dtype=np.float64)
 
         if sample_weight is not None and len(sample_weight) > 0:
             weight = np.asarray(sample_weight, dtype=np.float64)

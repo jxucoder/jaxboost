@@ -221,6 +221,37 @@ class MultiClassObjective:
         """XGBoost-compatible objective function."""
         return self.get_xgb_objective(**self._default_kwargs)
 
+    def get_lgb_objective(
+        self, **kwargs: Any
+    ) -> Callable[
+        [NDArray[np.floating[Any]], Any],
+        tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]],
+    ]:
+        """
+        Get a LightGBM-compatible objective function for multi-class.
+
+        Args:
+            **kwargs: Parameters to pass to the loss function
+
+        Returns:
+            LightGBM objective function
+        """
+
+        def objective(
+            y_pred: NDArray[np.floating[Any]], dataset: Any
+        ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
+            y_true = dataset.get_label()
+            sample_weight = dataset.get_weight()
+            return self.grad_hess(y_pred, y_true, sample_weight=sample_weight, **kwargs)
+
+        objective.__name__ = f"{self._name}_lgb_objective"
+        return objective
+
+    @property
+    def lgb_objective(self) -> Callable[..., Any]:
+        """LightGBM-compatible objective function."""
+        return self.get_lgb_objective(**self._default_kwargs)
+
     def with_params(self, **kwargs: Any) -> MultiClassObjective:
         """Create a new instance with default parameters set."""
         new_instance = MultiClassObjective(loss_fn=self.loss_fn, n_classes=self.n_classes)
