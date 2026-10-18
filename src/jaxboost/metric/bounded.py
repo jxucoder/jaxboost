@@ -6,7 +6,8 @@ from collections.abc import Callable
 
 import numpy as np
 
-from jaxboost.metric.base import Metric, sigmoid as _sigmoid
+from jaxboost.metric.base import Metric
+from jaxboost.metric.base import sigmoid as _sigmoid
 
 
 def bounded_mse_metric(transform: Callable[[np.ndarray], np.ndarray] | None = None) -> Metric:

@@ -294,7 +294,10 @@ class MultiOutputObjective:
         ) -> tuple[NDArray[np.floating[Any]], NDArray[np.floating[Any]]]:
             y_true = dataset.get_label()
             sample_weight = dataset.get_weight()
-            return self.grad_hess(y_pred, y_true, sample_weight=sample_weight, **kwargs)
+            grad, hess = self.grad_hess(y_pred, y_true, sample_weight=sample_weight, **kwargs)
+            # LightGBM reads 1D grad/hess as class-major, so return
+            # (n_samples, n_outputs) arrays to keep the sample-major layout.
+            return grad.reshape(-1, self.n_outputs), hess.reshape(-1, self.n_outputs)
 
         objective.__name__ = f"{self._name}_lgb_objective"
         return objective

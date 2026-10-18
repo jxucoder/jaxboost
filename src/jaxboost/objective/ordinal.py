@@ -1030,8 +1030,7 @@ class _MultiClassOrdinalBase:
         return objective
 
     def predict(self, y_pred: NDArray[np.floating[Any]]) -> NDArray[np.intp]:
-        n_samples = len(y_pred) // self.n_classes
-        logits = np.asarray(y_pred).reshape(n_samples, self.n_classes)
+        logits = np.asarray(y_pred).reshape(-1, self.n_classes)
         return np.argmax(logits, axis=1)
 
 
