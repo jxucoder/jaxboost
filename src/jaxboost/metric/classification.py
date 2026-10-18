@@ -6,7 +6,8 @@ from collections.abc import Callable
 
 import numpy as np
 
-from jaxboost.metric.base import Metric, sigmoid as _sigmoid
+from jaxboost.metric.base import Metric
+from jaxboost.metric.base import sigmoid as _sigmoid
 
 
 def _compute_auc(y_true: np.ndarray, y_score: np.ndarray) -> float:

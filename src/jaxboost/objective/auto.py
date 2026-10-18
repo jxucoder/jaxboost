@@ -69,9 +69,7 @@ class AutoObjective:
         """Wrapper to handle kwargs as dict arguments for JAX transformations."""
         return self.loss_fn(y_pred, y_true, **scalar_kwargs, **array_kwargs)
 
-    def _get_vmap_fns(
-        self, array_kwarg_keys: frozenset[str]
-    ) -> tuple[Any, Any, Any]:
+    def _get_vmap_fns(self, array_kwarg_keys: frozenset[str]) -> tuple[Any, Any, Any]:
         """Get or create JIT-compiled vmap functions for given array kwargs pattern."""
         if array_kwarg_keys not in self._vmap_cache:
             # Create in_axes: (0, 0, None for scalars, 0 for each array kwarg)
@@ -83,8 +81,9 @@ class AutoObjective:
 
             # Fused grad+hess: compute both in a single vmap pass
             def _grad_and_hess(y_pred, y_true, scalar_kwargs, array_kwargs):
-                return self._grad_fn(y_pred, y_true, scalar_kwargs, array_kwargs), \
-                    self._hess_fn(y_pred, y_true, scalar_kwargs, array_kwargs)
+                return self._grad_fn(y_pred, y_true, scalar_kwargs, array_kwargs), self._hess_fn(
+                    y_pred, y_true, scalar_kwargs, array_kwargs
+                )
 
             vmap_grad_hess = jax.jit(jax.vmap(_grad_and_hess, in_axes=in_axes))
             self._vmap_cache[array_kwarg_keys] = (vmap_grad, vmap_hess, vmap_grad_hess)
