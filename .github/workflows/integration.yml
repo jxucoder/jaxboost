@@ -11,6 +11,10 @@ on:
         default: ''
   release:
     types: [published]
+  pull_request:
+    paths:
+      - 'integration/**'
+      - '.github/workflows/integration.yml'
 
 jobs:
   integration:
@@ -35,6 +39,12 @@ jobs:
 
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
+
+      # XGBoost and LightGBM macOS wheels link against Homebrew's libomp
+      # but don't bundle it, so importing them fails without this.
+      - name: Install OpenMP (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
 
       - name: Create virtual environment
         run: uv venv
