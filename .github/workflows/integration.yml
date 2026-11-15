@@ -49,24 +49,24 @@ jobs:
       - name: Create virtual environment
         run: uv venv
 
-      - name: Install JAXBoost from PyPI (Unix)
-        if: runner.os != 'Windows'
+      # On a release, test that release's version rather than "latest": this
+      # workflow starts alongside the PyPI publish, so wait for it to appear.
+      - name: Install JAXBoost from PyPI
+        shell: bash
+        env:
+          JAXBOOST_VERSION: ${{ github.event.inputs.jaxboost_version || github.event.release.tag_name || '' }}
         run: |
-          if [ -n "${{ github.event.inputs.jaxboost_version }}" ]; then
-            uv pip install "jaxboost==${{ github.event.inputs.jaxboost_version }}"
-          else
+          version="${JAXBOOST_VERSION#v}"
+          if [ -z "$version" ]; then
             uv pip install jaxboost
+            exit 0
           fi
-
-      - name: Install JAXBoost from PyPI (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if ("${{ github.event.inputs.jaxboost_version }}") {
-            uv pip install "jaxboost==${{ github.event.inputs.jaxboost_version }}"
-          } else {
-            uv pip install jaxboost
-          }
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            uv pip install --refresh "jaxboost==$version" && exit 0
+            echo "jaxboost==$version not on PyPI yet (attempt $attempt), retrying in 30s"
+            sleep 30
+          done
+          exit 1
 
       - name: Install test dependencies
         run: uv pip install xgboost lightgbm scikit-learn pytest
