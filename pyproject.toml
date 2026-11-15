@@ -59,7 +59,7 @@ polars = [
     "pyarrow>=14.0.0",
 ]
 macos = [
-    "jax-metal>=0.1.1",
+    "jax-metal>=0.1.1; sys_platform == 'darwin'",
 ]
 
 [project.urls]
